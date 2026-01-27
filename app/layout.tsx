@@ -1,10 +1,8 @@
-'use client';
-
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
-import TopBar from '../components/TopBar';
 import ProtectedRoute from '@/contexts/ProtectedRoute';
+import TopBar from '@/components/TopBar';
 import { Analytics } from "@vercel/analytics/react"
 // import { PostHogProvider } from '@/contexts/PostHogContext';
 // import { PostHogErrorBoundary } from '@/components/PostHogErrorBoundary';
@@ -18,16 +16,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={geist.className}>
+      <body className={geist.className} suppressHydrationWarning>
         <Analytics mode="auto" />
         {/* <PostHogErrorBoundary>
           <PostHogProvider> */}
-            <AuthProvider>   
-                <ProtectedRoute>
-                  <TopBar />    
-                  <main>{children}</main>
-                </ProtectedRoute>
-            </AuthProvider>
+          <AuthProvider>
+            <TopBar />
+            <ProtectedRoute>{children}</ProtectedRoute>
+          </AuthProvider>
           {/* </PostHogProvider>
         </PostHogErrorBoundary> */}
       </body>

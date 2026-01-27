@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/LoginForm';
+import { locales, defaultLocale } from '@/i18n/config';
 
 export default function LoginPage() {
   const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
@@ -13,7 +14,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.replace('/dashboard');
+      const stored = window.localStorage.getItem('locale');
+      const isValid = locales.includes(stored as (typeof locales)[number]);
+      const nextLocale = isValid ? stored : defaultLocale;
+      router.replace(`/${nextLocale}/dashboard`);
     } else {
       setIsLoading(false);
     }
@@ -34,10 +38,16 @@ export default function LoginPage() {
           return;
         }
         
-        router.replace('/dashboard');
+        const stored = window.localStorage.getItem('locale');
+        const isValid = locales.includes(stored as (typeof locales)[number]);
+        const nextLocale = isValid ? stored : defaultLocale;
+        router.replace(`/${nextLocale}/dashboard`);
       } else {
         await signInWithEmail(email, password);
-        router.replace('/dashboard');
+        const stored = window.localStorage.getItem('locale');
+        const isValid = locales.includes(stored as (typeof locales)[number]);
+        const nextLocale = isValid ? stored : defaultLocale;
+        router.replace(`/${nextLocale}/dashboard`);
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Authentication failed');

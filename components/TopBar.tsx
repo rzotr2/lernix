@@ -1,45 +1,51 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useTrialStatus } from '@/hooks/useTrialStatus';
-import { BuyMeCoffee } from './BuyMeCoffee';
-// import { supabase } from '@/utils/supabase';
+import { locales, defaultLocale } from '@/i18n/config';
+import enMessages from '@/messages/en.json';
+import deMessages from '@/messages/de.json';
+import ukMessages from '@/messages/uk.json';
+import LanguagePicker from '@/components/LanguagePicker';
 
-// TopBar component handles user profile display and navigation
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const { subscription, isLoading: isLoadingSubscription } = useSubscription();
-  const { isInTrial } = useTrialStatus();
-
-  // State for tracking logout process
+  const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Handle click outside dropdown to close it
+  const messages = useMemo(() => {
+    if (selectedLocale === 'de') return deMessages;
+    if (selectedLocale === 'uk') return ukMessages;
+    return enMessages;
+  }, [selectedLocale]);
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
+    const stored = window.localStorage.getItem('locale');
+    const isValidStored = locales.includes(stored as (typeof locales)[number]);
+    if (isValidStored) {
+      setSelectedLocale(stored as (typeof locales)[number]);
+      return;
+    }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    const pathLocale = pathname.split('/')[1];
+    if (locales.includes(pathLocale as (typeof locales)[number])) {
+      setSelectedLocale(pathLocale as (typeof locales)[number]);
+      window.localStorage.setItem('locale', pathLocale);
+    }
+  }, [pathname]);
 
-  // Handle user logout with error handling and loading state
+  const handleLocaleChange = (nextLocale: string) => {
+    setSelectedLocale(nextLocale);
+  };
+
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
       await signOut();
-      setIsDropdownOpen(false);
       setIsLoggingOut(false);
     } catch (error) {
       console.error('Logout failed:', error);
@@ -50,90 +56,38 @@ export default function TopBar() {
   };
 
   return (
-    <div className="w-full bg-surface-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-700">
+    <header className="w-full bg-surface-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto flex justify-between items-center px-4 py-3">
-        <Link href="/" className="text-md sm:text-lg font-medium text-text dark:text-text-dark flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <span className="text-2xl">🎬</span>
-          <span className="font-sans">NextTemp</span>
+        <Link
+          href={`/${selectedLocale}/dashboard`}
+          className="text-md sm:text-lg font-medium text-text dark:text-text-dark flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <span className="text-2xl">📄</span>
+          <span className="font-sans">{messages.app.name}</span>
         </Link>
 
         <div className="flex items-center gap-4">
-          {!user ? (
-            <>
-              <BuyMeCoffee />
-              {/* Show login button for unauthenticated users */}
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-full transition-colors shadow-subtle hover:shadow-hover"
-              >
-                Sign in
-              </Link>
-            </>
-          ) : (
-            // Show subscription and profile for authenticated users
-            <>
-              {!isLoadingSubscription && (!isInTrial) && (
-                !subscription || 
-                subscription.status === 'canceled' || 
-                (subscription.cancel_at_period_end && new Date(subscription.current_period_end) > new Date())
-              ) && (
-                <button
-                  onClick={() => router.push('/profile')}
-                  className="hidden sm:block px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-full text-sm font-medium transition-colors shadow-subtle hover:shadow-hover"
-                >
-                  View Subscription
-                </button>
-              )}
-              <BuyMeCoffee />
+          <Link
+            href={`/${selectedLocale}/dashboard`}
+            className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-full transition-colors shadow-subtle hover:shadow-hover"
+          >
+            {messages.header.dashboard}
+          </Link>
 
-              {!isLoadingSubscription && (
-                subscription || isInTrial
-              ) && pathname !== '/dashboard' && (
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="hidden sm:block px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-full text-sm font-medium transition-colors shadow-subtle hover:shadow-hover"
-                >
-                  {isInTrial ? "Start Free Trial" : "Start Building"}
-                </button>
-              )}
-              
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2 hover:bg-neutral-darker/10 dark:hover:bg-neutral-darker/50 px-3 py-2 rounded-full transition-colors"
-                >
-                  <div className="w-8 h-8 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center text-primary dark:text-primary-light">
-                    {user.email?.[0].toUpperCase()}
-                  </div>
-                </button>
-                
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-surface-light dark:bg-surface-dark rounded-lg shadow-hover py-1 z-[60] border border-gray-200 dark:border-gray-700">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-text dark:text-text-dark hover:bg-neutral dark:hover:bg-neutral-dark"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setIsDropdownOpen(false);
-                        window.location.href = '/profile';
-                      }}
-                    >
-                      Profile & Subscription
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      className="block w-full text-left px-4 py-2 text-sm text-danger hover:bg-neutral dark:hover:bg-neutral-dark disabled:opacity-50"
-                    >
-                      {isLoggingOut ? 'Signing Out...' : 'Sign Out'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+          <LanguagePicker
+            currentLocale={selectedLocale}
+            onLocaleChange={handleLocaleChange}
+          />
+
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut || !user}
+            className="px-4 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-full transition-colors disabled:opacity-50"
+          >
+            {isLoggingOut ? `${messages.header.signOut}...` : messages.header.signOut}
+          </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 } 

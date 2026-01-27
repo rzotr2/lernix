@@ -1,0 +1,36 @@
+{
+  "app": {
+    "name": "NextTemp"
+  },
+  "header": {
+    "dashboard": "Dashboard",
+    "signOut": "Sign out",
+    "language": "Language"
+  },
+  "emptyState": {
+    "title": "Select a page to get started",
+    "subtitle": "Your workspace will appear here."
+  },
+  "sidebar": {
+    "placeholder": "Navigation will appear here."
+  },
+  "dashboard": {
+    "title": "Dashboard overview",
+    "subtitle": "Read-only summary for your workspace"
+  },
+  "metrics": {
+    "totalUsers": "Total users",
+    "revenue": "Revenue",
+    "activeSessions": "Active sessions",
+    "growthRate": "Growth rate"
+  },
+  "activity": {
+    "title": "Recent activity",
+    "empty": "No recent activity",
+    "items": {
+      "signup": "New user signup",
+      "payment": "Payment processed",
+      "settings": "Settings updated"
+    }
+  }
+}
