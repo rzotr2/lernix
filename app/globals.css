@@ -5,6 +5,7 @@
 :root {
   --background: #F8F9FA;
   --foreground: #2F3E46;
+  --topbar-height: 4rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +19,8 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Inter', sans-serif;
+  padding-top: var(--topbar-height);
+  overflow-x: hidden;
 }
 
 /* Add some cooking-themed utility classes */

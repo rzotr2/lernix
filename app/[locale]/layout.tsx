@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { notFound } from 'next/navigation';
-import AppSidebar from '@/components/AppSidebar';
+import WorkspaceShell from '@/components/WorkspaceShell';
 import { locales } from '@/i18n/config';
 
 type LocaleLayoutProps = {
@@ -21,12 +21,7 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] flex flex-col">
-        <div className="flex flex-1 min-h-0">
-          <AppSidebar />
-          <main className="flex-1 overflow-y-auto">{children}</main>
-        </div>
-      </div>
+      <WorkspaceShell>{children}</WorkspaceShell>
     </NextIntlClientProvider>
   );
 }

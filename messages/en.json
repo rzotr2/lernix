@@ -14,6 +14,119 @@
   "sidebar": {
     "placeholder": "Navigation will appear here."
   },
+  "pages": {
+    "newPage": "New page",
+    "newPageTitle": "Untitled page",
+    "untitledDisplay": "Untitled",
+    "newChild": "New subpage",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this page and all of its subpages?",
+    "loading": "Loading pages...",
+    "empty": "No pages yet.",
+    "notFound": "Page not found.",
+    "saving": "Saving...",
+    "emptyContent": "This page is empty. Switch to edit mode to add content.",
+    "errors": {
+      "load": "Failed to load page.",
+      "create": "Failed to create page.",
+      "rename": "Failed to rename page.",
+      "delete": "Failed to delete page."
+    }
+  },
+  "editor": {
+    "editMode": "Edit mode",
+    "readMode": "Read mode"
+  },
+  "blocks": {
+    "add": "Add block",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this block?",
+    "empty": "No blocks yet.",
+    "attachments": {
+      "upload": "Upload file",
+      "uploadDisabled": "Upload unavailable",
+      "uploading": "Uploading",
+      "uploadFailed": "Upload failed. Please try again.",
+      "unsupportedType": "Unsupported file type.",
+      "fileTooLarge": "File is too large. Max 10MB.",
+      "retry": "Retry",
+      "download": "Download",
+      "downloadUnavailable": "Download unavailable right now.",
+      "listFailed": "Attachments unavailable.",
+      "empty": "No attachments yet.",
+      "noAccess": "No access",
+      "fallbackName": "Untitled attachment",
+      "missing": "Attachment not available",
+      "unknownType": "Unknown file"
+    },
+    "placeholders": {
+      "heading": "Heading text",
+      "paragraph": "Write something...",
+      "callout": "Callout text",
+      "code": "Code snippet",
+      "codeLang": "Language",
+      "image": "Add image by URL",
+      "imageUrl": "Image URL",
+      "imageAlt": "Image description",
+      "attachment": "Attachment placeholder"
+    },
+    "callout": {
+      "info": "Info",
+      "note": "Note",
+      "warning": "Warning"
+    },
+    "types": {
+      "heading": "Heading",
+      "paragraph": "Paragraph",
+      "callout": "Callout",
+      "code": "Code",
+      "image": "Image",
+      "attachment": "Attachment",
+      "divider": "Divider"
+    },
+    "errors": {
+      "load": "Failed to load blocks.",
+      "create": "Failed to create block.",
+      "save": "Failed to save block.",
+      "delete": "Failed to delete block.",
+      "reorder": "Failed to reorder blocks."
+    }
+  },
+  "ai": {
+    "title": "AI input",
+    "fabAria": "Open AI input",
+    "languageLabel": "AI language",
+    "preferencesLabel": "Optional preferences",
+    "preferencesPlaceholder": "Example: keep it concise and use bullet points.",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "generateFailed": "Failed to generate. Please try again.",
+    "helper": "AI generation will be available soon.",
+    "languages": {
+      "english": "English",
+      "german": "German",
+      "ukrainian": "Ukrainian"
+    },
+    "stub": {
+      "table": "AI table (preview coming soon).",
+      "timeline": "AI timeline (preview coming soon).",
+      "quiz": "AI quiz (preview coming soon).",
+      "flashcard": "AI flashcards (preview coming soon).",
+      "mermaid": "AI diagram (preview coming soon).",
+      "graph": "AI graph (preview coming soon)."
+    },
+    "types": {
+      "notes": "Notes",
+      "flashcards": "Flashcards",
+      "quiz": "Quiz",
+      "tables": "Tables",
+      "timeline": "Timeline",
+      "diagrams": "Diagrams"
+    }
+  },
   "dashboard": {
     "title": "Dashboard overview",
     "subtitle": "Read-only summary for your workspace"

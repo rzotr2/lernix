@@ -4,9 +4,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { locales } from '@/i18n/config';
 
 const languages = [
-  { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'uk', label: 'Українська' }
+  { code: 'en', label: '🇺🇸', name: 'English' },
+  { code: 'de', label: '🇩🇪', name: 'Deutsch' },
+  { code: 'uk', label: '🇺🇦', name: 'Українська' }
 ] as const;
 
 type LanguagePickerProps = {
@@ -43,10 +43,11 @@ export default function LanguagePicker({
             id="language-picker-select"
             value={currentLocale}
             onChange={handleChange}
-            className="appearance-none bg-surface-light dark:bg-surface-dark text-text dark:text-text-dark border border-gray-200 dark:border-gray-700 rounded-full px-6 pr-12 py-2 text-sm font-medium shadow-subtle hover:shadow-hover transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer text-center w-24 sm:w-28 md:w-32 lg:w-36"
+            aria-label={`Language: ${languages.find((lang) => lang.code === currentLocale)?.name || 'English'}`}
+            className="appearance-none bg-surface-light dark:bg-surface-dark text-text dark:text-text-dark border border-gray-200 dark:border-gray-700 rounded-full px-3 pr-9 py-2 text-sm font-medium shadow-subtle hover:shadow-hover transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer text-center w-14 sm:w-16"
           >
             {languages.map((lang) => (
-              <option key={lang.code} value={lang.code}>
+              <option key={lang.code} value={lang.code} aria-label={lang.name} title={lang.name}>
                 {lang.label}
               </option>
             ))}

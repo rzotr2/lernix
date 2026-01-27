@@ -9,11 +9,13 @@ import enMessages from '@/messages/en.json';
 import deMessages from '@/messages/de.json';
 import ukMessages from '@/messages/uk.json';
 import LanguagePicker from '@/components/LanguagePicker';
+import { useLayout } from '@/contexts/LayoutContext';
 
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { toggleSidebar } = useLayout();
   const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -56,15 +58,25 @@ export default function TopBar() {
   };
 
   return (
-    <header className="w-full bg-surface-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-700">
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-4 py-3">
-        <Link
-          href={`/${selectedLocale}/dashboard`}
-          className="text-md sm:text-lg font-medium text-text dark:text-text-dark flex items-center gap-2 hover:opacity-80 transition-opacity"
-        >
-          <span className="text-2xl">📄</span>
-          <span className="font-sans">{messages.app.name}</span>
-        </Link>
+    <header className="fixed left-0 right-0 top-0 z-40 h-16 bg-surface-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-700">
+      <div className="max-w-7xl mx-auto flex h-full items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label="Toggle sidebar"
+            onClick={toggleSidebar}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 shadow-subtle hover:shadow-hover transition lg:hidden"
+          >
+            ☰
+          </button>
+          <Link
+            href={`/${selectedLocale}/dashboard`}
+            className="text-md sm:text-lg font-medium text-text dark:text-text-dark flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <span className="text-2xl">📄</span>
+            <span className="font-sans">{messages.app.name}</span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-4">
           <Link

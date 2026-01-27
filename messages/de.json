@@ -14,6 +14,119 @@
   "sidebar": {
     "placeholder": "Die Navigation erscheint hier."
   },
+  "pages": {
+    "newPage": "Neue Seite",
+    "newPageTitle": "Unbenannte Seite",
+    "untitledDisplay": "Unbenannt",
+    "newChild": "Neue Unterseite",
+    "delete": "Löschen",
+    "deleteConfirm": "Diese Seite und alle Unterseiten löschen?",
+    "loading": "Seiten werden geladen...",
+    "empty": "Noch keine Seiten.",
+    "notFound": "Seite nicht gefunden.",
+    "saving": "Speichern...",
+    "emptyContent": "Diese Seite ist leer. Wechsle in den Bearbeitungsmodus, um Inhalte hinzuzufügen.",
+    "errors": {
+      "load": "Seite konnte nicht geladen werden.",
+      "create": "Seite konnte nicht erstellt werden.",
+      "rename": "Seite konnte nicht umbenannt werden.",
+      "delete": "Seite konnte nicht gelöscht werden."
+    }
+  },
+  "editor": {
+    "editMode": "Bearbeiten",
+    "readMode": "Lesemodus"
+  },
+  "blocks": {
+    "add": "Block hinzufügen",
+    "edit": "Bearbeiten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "deleteConfirm": "Diesen Block löschen?",
+    "empty": "Noch keine Blöcke.",
+    "attachments": {
+      "upload": "Datei hochladen",
+      "uploadDisabled": "Upload nicht verfügbar",
+      "uploading": "Wird hochgeladen",
+      "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen.",
+      "unsupportedType": "Nicht unterstützter Dateityp.",
+      "fileTooLarge": "Datei ist zu groß. Max. 10 MB.",
+      "retry": "Erneut versuchen",
+      "download": "Download",
+      "downloadUnavailable": "Download derzeit nicht verfügbar.",
+      "listFailed": "Anhänge nicht verfügbar.",
+      "empty": "Noch keine Anhänge.",
+      "noAccess": "Kein Zugriff",
+      "fallbackName": "Anhang ohne Titel",
+      "missing": "Anhang nicht verfügbar",
+      "unknownType": "Unbekannte Datei"
+    },
+    "placeholders": {
+      "heading": "Überschrift",
+      "paragraph": "Schreibe etwas...",
+      "callout": "Hinweistext",
+      "code": "Codebeispiel",
+      "codeLang": "Sprache",
+      "image": "Bild per URL hinzufügen",
+      "imageUrl": "Bild-URL",
+      "imageAlt": "Bildbeschreibung",
+      "attachment": "Anhang Platzhalter"
+    },
+    "callout": {
+      "info": "Info",
+      "note": "Notiz",
+      "warning": "Warnung"
+    },
+    "types": {
+      "heading": "Überschrift",
+      "paragraph": "Absatz",
+      "callout": "Hinweis",
+      "code": "Code",
+      "image": "Bild",
+      "attachment": "Anhang",
+      "divider": "Trenner"
+    },
+    "errors": {
+      "load": "Blöcke konnten nicht geladen werden.",
+      "create": "Block konnte nicht erstellt werden.",
+      "save": "Block konnte nicht gespeichert werden.",
+      "delete": "Block konnte nicht gelöscht werden.",
+      "reorder": "Blöcke konnten nicht neu sortiert werden."
+    }
+  },
+  "ai": {
+    "title": "AI-Eingabe",
+    "fabAria": "AI-Eingabe öffnen",
+    "languageLabel": "AI-Sprache",
+    "preferencesLabel": "Optionale Vorgaben",
+    "preferencesPlaceholder": "Beispiel: kurz halten und Stichpunkte nutzen.",
+    "generate": "Generieren",
+    "generating": "Wird generiert...",
+    "generateFailed": "Generierung fehlgeschlagen. Bitte erneut versuchen.",
+    "helper": "AI-Generierung ist bald verfügbar.",
+    "languages": {
+      "english": "Englisch",
+      "german": "Deutsch",
+      "ukrainian": "Ukrainisch"
+    },
+    "stub": {
+      "table": "AI-Tabelle (Vorschau folgt).",
+      "timeline": "AI-Zeitlinie (Vorschau folgt).",
+      "quiz": "AI-Quiz (Vorschau folgt).",
+      "flashcard": "AI-Karteikarten (Vorschau folgt).",
+      "mermaid": "AI-Diagramm (Vorschau folgt).",
+      "graph": "AI-Graph (Vorschau folgt)."
+    },
+    "types": {
+      "notes": "Notizen",
+      "flashcards": "Karteikarten",
+      "quiz": "Quiz",
+      "tables": "Tabellen",
+      "timeline": "Zeitlinie",
+      "diagrams": "Diagramme"
+    }
+  },
   "dashboard": {
     "title": "Dashboard-Übersicht",
     "subtitle": "Nur lesende Zusammenfassung für deinen Workspace"
