@@ -3359,145 +3359,147 @@ export default function PageView() {
           isMobile && isHeaderHidden ? '-translate-y-6 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        {breadcrumbs.length > 0 && (
-          <nav className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            {breadcrumbs.map((crumb, index) => {
-              const isLast = index === breadcrumbs.length - 1;
-              const displayTitle =
-                crumb.title === 'Без назви' || !crumb.title
-                  ? t('pages.untitledDisplay')
-                  : crumb.title;
-              return (
-                <div key={crumb.id} className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {breadcrumbs.length > 0 && (
+            <nav className="flex flex-wrap items-center gap-2 text-sm text-muted">
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                const displayTitle =
+                  crumb.title === 'Без назви' || !crumb.title
+                    ? t('pages.untitledDisplay')
+                    : crumb.title;
+                return (
+                  <div key={crumb.id} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLast) {
+                          router.push(`/${locale}/pages/${crumb.slug}`);
+                        }
+                      }}
+                      className={`transition ${
+                        isLast
+                          ? 'text-foreground font-medium'
+                          : 'text-muted hover:text-foreground'
+                      }`}
+                      aria-current={isLast ? 'page' : undefined}
+                    >
+                      {displayTitle}
+                    </button>
+                    {!isLast && <span className="text-slate-400">/</span>}
+                  </div>
+                );
+              })}
+            </nav>
+          )}
+
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-2)] px-2 py-1 shadow-inner backdrop-blur-xl">
+              <button
+                onClick={() => setEditMode((prev) => !prev)}
+                className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+              >
+                {editMode ? t('editor.editMode') : t('editor.readMode')}
+              </button>
+              <Dialog.Root open={isActionsOpen} onOpenChange={setIsActionsOpen}>
+                <Dialog.Trigger asChild>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!isLast) {
-                        router.push(`/${locale}/pages/${crumb.slug}`);
-                      }
-                    }}
-                    className={`transition ${
-                      isLast
-                        ? 'text-foreground font-medium'
-                        : 'text-muted hover:text-foreground'
-                    }`}
-                    aria-current={isLast ? 'page' : undefined}
+                    className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 lg:hidden"
+                    aria-label="More actions"
                   >
-                    {displayTitle}
+                    ⋯
                   </button>
-                  {!isLast && <span className="text-slate-400">/</span>}
-                </div>
-              );
-            })}
-          </nav>
-        )}
-
-        <div className="flex flex-wrap items-center gap-4">
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            onBlur={() => handleRename()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.currentTarget.blur();
-              }
-            }}
-            placeholder="Enter Signal Title..."
-            className="flex-1 min-w-[240px] text-3xl sm:text-4xl lg:text-5xl font-bold bg-transparent text-foreground outline-none border-b border-transparent placeholder:text-muted focus:border-cyan-400/50 focus:drop-shadow-[0_0_12px_rgba(34,211,238,0.6)] text-balance"
-          />
-
-          <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-2)] px-2 py-1 shadow-inner backdrop-blur-xl">
-            <button
-              onClick={() => setEditMode((prev) => !prev)}
-              className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-            >
-              {editMode ? t('editor.editMode') : t('editor.readMode')}
-            </button>
-            <Dialog.Root open={isActionsOpen} onOpenChange={setIsActionsOpen}>
-              <Dialog.Trigger asChild>
-                <button
-                  type="button"
-                  className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 lg:hidden"
-                  aria-label="More actions"
-                >
-                  ⋯
-                </button>
-              </Dialog.Trigger>
-              <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" />
-                <Dialog.Content className="fixed inset-x-4 bottom-4 z-[80] rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
-                  <VisuallyHidden>
-                    <Dialog.Title>Actions</Dialog.Title>
-                  </VisuallyHidden>
-                  <div className="text-xs uppercase tracking-[0.2em] text-muted">
-                    Actions
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleCreateChild();
-                        setIsActionsOpen(false);
-                      }}
-                      className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground"
-                    >
-                      {t('pages.newChild')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleExportPdf();
-                        setIsActionsOpen(false);
-                      }}
-                      disabled={!page || isExporting || blocks.length === 0}
-                      className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground disabled:opacity-60"
-                    >
-                      {isExporting ? 'Exporting...' : 'Export as PDF'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleDelete();
-                        setIsActionsOpen(false);
-                      }}
-                      className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-left text-sm text-red-600"
-                    >
-                      {t('pages.delete')}
-                    </button>
-                  </div>
-                </Dialog.Content>
-              </Dialog.Portal>
-            </Dialog.Root>
-            <button
-              onClick={handleExportPdf}
-              disabled={!page || isExporting || blocks.length === 0}
-              className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60"
-            >
-              {isExporting ? 'Exporting...' : 'Export as PDF'}
-            </button>
-            {editMode && (
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept=".pdf,.docx,.md,.txt,.png,.jpg,.jpeg,.webp"
-                onChange={handleFileSelection}
-              />
-            )}
-            <button
-              onClick={handleCreateChild}
-              className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-            >
-              {t('pages.newChild')}
-            </button>
-            <button
-              onClick={handleDelete}
-              className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-red-600 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 focus-visible:ring-2 focus-visible:ring-red-400/40"
-            >
-              {t('pages.delete')}
-            </button>
+                </Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" />
+                  <Dialog.Content className="fixed inset-x-4 bottom-4 z-[80] rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
+                    <VisuallyHidden>
+                      <Dialog.Title>Actions</Dialog.Title>
+                    </VisuallyHidden>
+                    <div className="text-xs uppercase tracking-[0.2em] text-muted">
+                      Actions
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCreateChild();
+                          setIsActionsOpen(false);
+                        }}
+                        className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground"
+                      >
+                        {t('pages.newChild')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportPdf();
+                          setIsActionsOpen(false);
+                        }}
+                        disabled={!page || isExporting || blocks.length === 0}
+                        className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground disabled:opacity-60"
+                      >
+                        {isExporting ? 'Exporting...' : 'Export as PDF'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleDelete();
+                          setIsActionsOpen(false);
+                        }}
+                        className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-left text-sm text-red-600"
+                      >
+                        {t('pages.delete')}
+                      </button>
+                    </div>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
+              <button
+                onClick={handleExportPdf}
+                disabled={!page || isExporting || blocks.length === 0}
+                className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60"
+              >
+                {isExporting ? 'Exporting...' : 'Export as PDF'}
+              </button>
+              {editMode && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.docx,.md,.txt,.png,.jpg,.jpeg,.webp"
+                  onChange={handleFileSelection}
+                />
+              )}
+              <button
+                onClick={handleCreateChild}
+                className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+              >
+                {t('pages.newChild')}
+              </button>
+              <button
+                onClick={handleDelete}
+                className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-red-600 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 focus-visible:ring-2 focus-visible:ring-red-400/40"
+              >
+                {t('pages.delete')}
+              </button>
+            </div>
           </div>
         </div>
+
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          onBlur={() => handleRename()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.currentTarget.blur();
+            }
+          }}
+          placeholder="Enter Signal Title..."
+          className="w-full max-w-[90%] text-[clamp(1.875rem,3vw,3rem)] font-bold bg-transparent text-foreground outline-none border-b border-transparent placeholder:text-muted focus:border-cyan-400/50 focus:drop-shadow-[0_0_12px_rgba(34,211,238,0.6)] text-balance break-words mb-8"
+        />
       </div>
 
       {isSaving && (

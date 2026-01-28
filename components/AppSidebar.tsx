@@ -6,10 +6,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as Collapsible from '@radix-ui/react-collapsible';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import {
   Command,
   ChevronRight,
   File,
+  CornerDownRight,
   Settings,
   Moon,
   Sun,
@@ -73,6 +75,7 @@ export default function AppSidebar() {
   const [openNodes, setOpenNodes] = useState<Record<string, boolean>>({});
   const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [spotlightPos, setSpotlightPos] = useState({ x: 0, y: 0 });
 
   const locale = pathname.split('/')[1] || 'en';
 
@@ -180,11 +183,12 @@ export default function AppSidebar() {
     const hasChildren = node.children.length > 0;
     const isActive = activeSlug === node.slug;
     const isOpen = hasChildren ? openNodes[node.id] ?? activePathIds.has(node.id) : false;
-    const indent = 14 + depth * 16;
+    const indent = 12 + depth * 12;
     const Icon = File;
     const iconClass = isActive
       ? 'text-cyan-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.7)]'
       : 'text-muted';
+    const isInActivePath = activePathIds.has(node.id);
 
     return (
       <motion.div key={node.id} layout className="space-y-1">
@@ -195,8 +199,10 @@ export default function AppSidebar() {
           <div className="relative group">
             {depth > 0 && (
               <span
-                className="pointer-events-none absolute bottom-0 top-0 w-px bg-[color:var(--border)] transition-colors group-hover:bg-cyan-400/40"
-                style={{ left: `${indent - 10}px` }}
+                className={`pointer-events-none absolute bottom-0 top-0 w-px ${
+                  isInActivePath ? 'bg-blue-500/50' : 'bg-white/5'
+                } transition-colors`}
+                style={{ left: `${indent - 8}px` }}
               />
             )}
             <motion.div
@@ -204,23 +210,49 @@ export default function AppSidebar() {
               whileHover={{ x: 2 }}
               className={`relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
-                  ? 'bg-white/10 text-foreground [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
-                  : 'text-muted hover:bg-white/5 hover:text-foreground'
+                  ? 'bg-blue-500/10 text-white border-l-2 border-blue-400 [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
+                  : 'text-muted hover:text-foreground'
+              } ${
+                depth === 0 && hasChildren
+                  ? 'sticky top-0 z-10 backdrop-blur-md bg-black/60'
+                  : ''
               }`}
               style={{ paddingLeft: `${indent}px` }}
             >
-              <Link
-                href={`/${locale}/pages/${node.slug}`}
-                onClick={closeSidebar}
-                className="flex w-full items-center gap-2"
-              >
-                <Icon
-                  strokeWidth={1.5}
-                  className={iconClass}
-                  {...(isActive ? { fill: 'currentColor' } : {})}
+              {depth > 0 && (
+                <CornerDownRight
+                  strokeWidth={1.2}
+                  className={`absolute -left-2 h-3.5 w-3.5 ${
+                    isInActivePath ? 'text-blue-400/60' : 'text-white/10'
+                  }`}
+                  style={{ top: '50%', transform: 'translateY(-50%)' }}
                 />
-                <span className="flex-1 truncate">{node.title}</span>
-              </Link>
+              )}
+              <Tooltip.Root delayDuration={150}>
+                <Tooltip.Trigger asChild>
+                  <Link
+                    href={`/${locale}/pages/${node.slug}`}
+                    onClick={closeSidebar}
+                    className="flex w-full items-center gap-2 min-w-0"
+                  >
+                    <Icon
+                      strokeWidth={1.5}
+                      className={iconClass}
+                      {...(isActive ? { fill: 'currentColor' } : {})}
+                    />
+                    <span className="flex-1 truncate">{node.title}</span>
+                  </Link>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    side="right"
+                    sideOffset={10}
+                    className="z-50 rounded-xl border border-white/10 bg-[color:var(--surface-2)] px-3 py-2 text-xs text-foreground shadow-[0_20px_60px_rgba(2,6,23,0.35)] backdrop-blur-xl"
+                  >
+                    {node.title}
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
               {hasChildren && (
                 <Collapsible.Trigger
                   type="button"
@@ -314,9 +346,26 @@ export default function AppSidebar() {
               <div className="text-sm text-muted">{t('pages.empty')}</div>
             )}
 
-            <div className="max-h-[60vh] overflow-y-auto overflow-x-auto">
-              <div className="space-y-1 min-w-max">{tree.map((node) => renderNode(node))}</div>
-            </div>
+            <Tooltip.Provider>
+              <div
+                className="group relative max-h-[60vh] overflow-y-auto overflow-x-hidden nav-scroll"
+                onMouseMove={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setSpotlightPos({
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top
+                  });
+                }}
+              >
+                <div
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                  style={{
+                    backgroundImage: `radial-gradient(180px circle at ${spotlightPos.x}px ${spotlightPos.y}px, rgba(59,130,246,0.12), transparent 60%)`
+                  }}
+                />
+                <div className="space-y-1 min-w-0">{tree.map((node) => renderNode(node))}</div>
+              </div>
+            </Tooltip.Provider>
           </div>
         </div>
 
