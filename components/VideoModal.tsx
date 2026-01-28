@@ -28,11 +28,11 @@ export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
             exit={{ opacity: 0, scale: 0.95 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-xl max-w-4xl w-full">
+            <div className="glass-surface-strong relative w-full max-w-4xl rounded-xl">
               {/* Close button */}
               <button
                 onClick={onClose}
-                className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                className="absolute -top-12 right-0 text-foreground hover:text-muted transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>

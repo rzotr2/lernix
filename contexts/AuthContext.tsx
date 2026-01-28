@@ -135,6 +135,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
   }, [checkSubscription]);
 
+  useEffect(() => {
+    if (!session?.access_token) return;
+    let cancelled = false;
+    const interval = window.setInterval(async () => {
+      if (cancelled) return;
+      try {
+        const { error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn('Session refresh failed:', error.message);
+        }
+      } catch (error) {
+        console.warn('Session refresh failed:', error);
+      }
+    }, 1000 * 60 * 20);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [session?.access_token]);
+
   const value = {
     user,
     session,

@@ -124,6 +124,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const pageId = searchParams.get('pageId');
+  const includeParsed = searchParams.get('includeParsed') === '1';
 
   if (!pageId) {
     return NextResponse.json({ error: 'Missing pageId' }, { status: 400 });
@@ -134,9 +135,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const selectFields = includeParsed
+    ? 'id,page_id,filename,file_type,file_size,storage_path,created_at,uploaded_by,parsed_text'
+    : 'id,page_id,filename,file_type,file_size,storage_path,created_at,uploaded_by';
+
   const { data, error } = await supabase
     .from('attachments')
-    .select('id,page_id,filename,file_type,file_size,storage_path,created_at,uploaded_by')
+    .select(selectFields)
     .eq('page_id', pageId)
     .order('created_at', { ascending: true });
 
@@ -162,7 +167,8 @@ export async function GET(request: NextRequest) {
         file_size: attachment.file_size,
         created_at: attachment.created_at,
         uploaded_by: attachment.uploaded_by,
-        signed_url: signed?.signedUrl || null
+        signed_url: signed?.signedUrl || null,
+        ...(includeParsed ? { parsed_text: attachment.parsed_text || '' } : {})
       };
     })
   );

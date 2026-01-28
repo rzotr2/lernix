@@ -64,28 +64,155 @@
     },
     "placeholders": {
       "heading": "Heading text",
+      "subtitle": "Subtitle (optional)",
       "paragraph": "Write something...",
+      "quote": "Quote text",
+      "quoteAuthor": "Author (optional)",
+      "quoteSource": "Source (optional)",
       "callout": "Callout text",
+      "calloutTitle": "Title (optional)",
+      "list": "List items",
+      "listItem": "List item",
+      "checklist": "Checklist items",
+      "checklistItem": "Checklist item",
+      "definitions": "Definitions",
+      "definitionTerm": "Term",
+      "definition": "Definition",
       "code": "Code snippet",
       "codeLang": "Language",
       "image": "Add image by URL",
       "imageUrl": "Image URL",
       "imageAlt": "Image description",
+      "imageCaption": "Caption (optional)",
+      "dividerLabel": "Divider label (optional)",
+      "tableCaption": "Table caption (optional)",
+      "timelineTitle": "Title",
+      "timelineOrder": "Order",
+      "timelineDescription": "Description",
+      "stepTitle": "Step title",
+      "stepDescription": "Step description",
+      "faqQuestion": "Question",
+      "faqAnswer": "Answer",
+      "summary": "Summary text",
+      "takeaways": "Key takeaways",
+      "takeawaysItem": "Takeaway",
+      "flashcardFront": "Front",
+      "flashcardBack": "Back",
+      "mermaid": "Mermaid code",
+      "graph": "Graph content",
       "attachment": "Attachment placeholder"
     },
     "callout": {
       "info": "Info",
       "note": "Note",
-      "warning": "Warning"
+      "warning": "Warning",
+      "tip": "Tip",
+      "example": "Example",
+      "definition": "Definition",
+      "summary": "Summary"
     },
     "types": {
       "heading": "Heading",
       "paragraph": "Paragraph",
+      "quote": "Quote",
       "callout": "Callout",
+      "list": "List",
+      "checklist": "Checklist",
+      "definitions": "Definitions",
       "code": "Code",
       "image": "Image",
       "attachment": "Attachment",
+      "table": "Table",
+      "timeline": "Timeline",
+      "steps": "Steps",
+      "quiz": "Quiz",
+      "flashcard": "Flashcard",
+      "flashcardDeck": "Flashcard deck",
+      "faq": "FAQ",
+      "summary": "Summary",
+      "takeaways": "Key takeaways",
+      "mermaid": "Diagram",
+      "graph": "Graph",
       "divider": "Divider"
+    },
+    "editor": {
+      "headingLevel": "Heading level",
+      "columns": "Columns",
+      "rows": "Rows",
+      "addColumn": "Add column",
+      "addRow": "Add row",
+      "addItem": "Add item",
+      "remove": "Remove",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "labels": {
+      "column": "Column {index}",
+      "row": "Row {index}",
+      "item": "Item {index}",
+      "question": "Question {index}",
+      "option": "Option {index}",
+      "card": "Card {index}",
+      "step": "Step {index}",
+      "definition": "Definition {index}",
+      "headingLevel": "H{level}"
+    },
+    "paragraph": {
+      "sizeLabel": "Size",
+      "toneLabel": "Tone",
+      "alignLabel": "Alignment",
+      "size": { "xs": "XS", "sm": "Small", "md": "Medium", "lg": "Large" },
+      "tone": { "normal": "Normal", "muted": "Muted", "lead": "Lead" },
+      "align": { "left": "Left", "center": "Center" }
+    },
+    "list": {
+      "ordered": "Ordered list",
+      "nested": "Nested items",
+      "nestedHint": "Use “Parent::Child1|Child2” for subitems."
+    },
+    "image": {
+      "sizeLabel": "Image size",
+      "alignLabel": "Alignment",
+      "size": { "sm": "Small", "md": "Medium", "lg": "Large" },
+      "align": { "left": "Left", "center": "Center", "right": "Right" }
+    },
+    "timeline": {
+      "itemsLabel": "Timeline items"
+    },
+    "steps": {
+      "stepsLabel": "Steps"
+    },
+    "quiz": {
+      "questionsLabel": "Questions",
+      "addQuestion": "Add question",
+      "optionsLabel": "Options",
+      "addOption": "Add option",
+      "correctOptionPlaceholder": "Correct option (optional)"
+    },
+    "flashcardDeck": {
+      "cardsLabel": "Cards",
+      "addCard": "Add card"
+    },
+    "faq": {
+      "itemsLabel": "FAQ items"
+    },
+    "graph": {
+      "nodesLabel": "Nodes",
+      "addNode": "Add node",
+      "nodeId": "Node id",
+      "nodeLabel": "Label",
+      "edgesLabel": "Edges",
+      "addEdge": "Add edge",
+      "edgeFrom": "From",
+      "edgeTo": "To",
+      "edgeLabel": "Label"
+    },
+    "divider": {
+      "style": {
+        "line": "Line",
+        "space": "Space",
+        "dotted": "Dotted"
+      }
     },
     "errors": {
       "load": "Failed to load blocks.",
@@ -98,17 +225,47 @@
   "ai": {
     "title": "AI input",
     "fabAria": "Open AI input",
-    "languageLabel": "AI language",
+    "languageLabel": "Generation language",
+    "typesLabel": "Content types",
+    "usePageContext": "Use page context",
+    "loading": "Generating content...",
     "preferencesLabel": "Optional preferences",
     "preferencesPlaceholder": "Example: keep it concise and use bullet points.",
     "generate": "Generate",
     "generating": "Generating...",
     "generateFailed": "Failed to generate. Please try again.",
-    "helper": "AI generation will be available soon.",
+    "helper": "Generation uses selected sources.",
     "languages": {
       "english": "English",
       "german": "German",
-      "ukrainian": "Ukrainian"
+      "ukrainian": "Ukrainian",
+      "french": "French",
+      "spanish": "Spanish",
+      "italian": "Italian",
+      "portuguese": "Portuguese",
+      "dutch": "Dutch",
+      "polish": "Polish",
+      "turkish": "Turkish",
+      "japanese": "Japanese",
+      "korean": "Korean"
+    },
+    "sources": {
+      "title": "Sources",
+      "add": "Add",
+      "remove": "Remove",
+      "empty": "Add at least one source to generate.",
+      "emptyText": "Enter some text before adding.",
+      "emptyParsed": "No parsed text found for this file.",
+      "manualLabel": "Add text as source",
+      "manualPlaceholder": "Paste or type text to use as a source.",
+      "addText": "Add as source",
+      "attachFile": "Attach file",
+      "attachButton": "Upload file",
+      "attachHint": "Supported: pdf, docx, md, txt.",
+      "uploading": "Uploading...",
+      "uploadFailed": "Failed to parse file.",
+      "attachmentsTitle": "Uploaded files",
+      "fileLabel": "Temporary file"
     },
     "stub": {
       "table": "AI table (preview coming soon).",
@@ -118,13 +275,37 @@
       "mermaid": "AI diagram (preview coming soon).",
       "graph": "AI graph (preview coming soon)."
     },
+    "blocks": {
+      "table": "Table content unavailable.",
+      "flashcard": "Flashcard content unavailable.",
+      "flashcardFront": "Front",
+      "flashcardBack": "Back",
+      "flashcardAnswerLabel": "Answer",
+      "quiz": "Quiz content unavailable.",
+      "quizCorrect": "Correct",
+      "quizIncorrect": "Incorrect",
+      "quizCorrectAnswerLabel": "Correct answer",
+      "quizExplanationLabel": "Explanation",
+      "quizProgress": "Progress",
+      "timeline": "Timeline content unavailable.",
+      "timelineItem": "Timeline item",
+      "mermaid": "Diagram content unavailable.",
+      "mermaidError": "Mermaid syntax error.",
+      "graph": "Graph content unavailable."
+    },
     "types": {
       "notes": "Notes",
       "flashcards": "Flashcards",
       "quiz": "Quiz",
       "tables": "Tables",
       "timeline": "Timeline",
-      "diagrams": "Diagrams"
+      "diagrams": "Diagrams",
+      "lists": "Lists",
+      "definitions": "Definitions",
+      "faq": "FAQ",
+      "summary": "Summary",
+      "takeaways": "Key takeaways",
+      "steps": "Steps"
     }
   },
   "dashboard": {

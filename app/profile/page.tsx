@@ -154,24 +154,24 @@ function ProfileContent() {
         </div>
       }
     >
-      <div className="min-h-screen bg-surface-light dark:bg-surface-dark p-8 max-w-4xl mx-auto">
+      <div className="min-h-screen bg-[color:var(--background)] p-8 max-w-4xl mx-auto text-foreground">
         {paymentStatus === 'success' && (
-          <div className="mb-8 p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-            <p className="text-green-600 dark:text-green-400">
+          <div className="mb-8 rounded-lg bg-green-50 p-4">
+            <p className="text-green-600">
               🎉 Thank you for your subscription! Your payment was successful.
             </p>
           </div>
         )}
         
-        <h1 className="text-3xl font-bold mb-8">Profile</h1>
+        <h1 className="text-3xl font-bold mb-8 text-foreground">Profile</h1>
         
         <AccountManagement />
 
         {/* Subscription Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Subscription Status</h2>
+        <div className="glass-surface-strong rounded-lg p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4 text-foreground">Subscription Status</h2>
           {error ? (
-            <div className="text-red-500 dark:text-red-400">{error}</div>
+            <div className="text-red-500">{error}</div>
           ) : isLoadingSubscription ? (
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -191,14 +191,14 @@ function ProfileContent() {
                 <div className="mt-4">
                   <Link
                     href="/pay"
-                    className="inline-block px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-full shadow-subtle hover:shadow-hover transition-all"
+                    className="btn-primary inline-block rounded-full px-6 py-3 text-white transition-all"
                   >
                     Resubscribe
                   </Link>
                 </div>
               ) : subscription.cancel_at_period_end ? (
-                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
-                  <p className="text-yellow-600 dark:text-yellow-400 mb-2">
+                <div className="mt-4 rounded-lg bg-yellow-50 p-4">
+                  <p className="mb-2 text-yellow-600">
                     Your subscription will end on {new Date(subscription.current_period_end).toLocaleDateString()}
                   </p>
                   <button
@@ -221,7 +221,7 @@ function ProfileContent() {
             <div className="mt-4 space-y-4">
               {isInTrial ? (
                 <>
-                  <p className="text-yellow-600 dark:text-yellow-400">
+                  <p className="text-yellow-600">
                     You are currently in your 48-hour trial period. Your trial will end on {' '}
                     {trialEndTime ? new Date(trialEndTime).toLocaleDateString() : 'soon'}.
                   </p>
@@ -229,8 +229,8 @@ function ProfileContent() {
                 </>
               ) : trialEndTime ? (
                 <>
-                  <div className="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg mb-4">
-                    <p className="text-red-600 dark:text-red-400">
+                  <div className="mb-4 rounded-lg bg-red-50 p-4">
+                    <p className="text-red-600">
                       Your trial period ended on {new Date(trialEndTime).toLocaleDateString()}.
                     </p>
                     <p className="mt-2">Subscribe now to regain access to the cooking experience.</p>
@@ -255,16 +255,16 @@ function ProfileContent() {
 
         {/* Cancel Confirmation Modal */}
         {isCancelModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-semibold mb-4">Cancel Subscription?</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div className="glass-surface-strong w-full max-w-md rounded-2xl p-6">
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Cancel Subscription?</h3>
+              <p className="mb-6 text-muted">
                 You&apos;ll continue to have access until the end of your billing period on {new Date(subscription?.current_period_end || '').toLocaleDateString()}. No refunds are provided for cancellations.
               </p>
               <div className="flex gap-4 justify-end">
                 <button
                   onClick={() => setIsCancelModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  className="btn-ghost rounded-lg px-4 py-2 text-muted"
                   disabled={isCancelling}
                 >
                   Keep Subscription

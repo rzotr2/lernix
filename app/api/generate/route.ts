@@ -6,8 +6,11 @@ export const runtime = 'nodejs';
 
 type GeneratePayload = {
   page_id?: string;
-  language?: 'en' | 'de' | 'uk';
+  language_code?: string;
   selected_content_types?: string[];
+  use_page_context?: boolean;
+  sources?: Array<{ type: 'file' | 'text'; content: string }>;
+  page_context?: string;
   user_preferences?: string;
 };
 
@@ -16,15 +19,80 @@ const MAX_CONTEXT_CHARS = 12000;
 const allowedTypes = new Set([
   'heading',
   'paragraph',
+  'quote',
   'callout',
+  'list',
+  'checklist',
+  'definitions',
   'code',
+  'image',
+  'divider',
   'table',
   'timeline',
+  'steps',
   'quiz',
   'flashcard',
+  'flashcard_deck',
+  'faq',
+  'summary',
+  'takeaways',
   'mermaid',
   'graph'
 ]);
+
+const typeAliases: Record<string, string> = {
+  headings: 'heading',
+  heading: 'heading',
+  paragraphs: 'paragraph',
+  paragraph: 'paragraph',
+  quote: 'quote',
+  quotes: 'quote',
+  notes: 'paragraph',
+  note: 'paragraph',
+  callouts: 'callout',
+  callout: 'callout',
+  codeblock: 'code',
+  'code-block': 'code',
+  code: 'code',
+  images: 'image',
+  image: 'image',
+  divider: 'divider',
+  separators: 'divider',
+  tables: 'table',
+  table: 'table',
+  timelines: 'timeline',
+  timeline: 'timeline',
+  steps: 'steps',
+  process: 'steps',
+  checklist: 'checklist',
+  checklists: 'checklist',
+  list: 'list',
+  lists: 'list',
+  definitions: 'definitions',
+  definition: 'definitions',
+  quizzes: 'quiz',
+  quiz: 'quiz',
+  flashcards: 'flashcard_deck',
+  'flash-card': 'flashcard',
+  flashcard: 'flashcard',
+  'flashcard-deck': 'flashcard_deck',
+  faq: 'faq',
+  faqs: 'faq',
+  summary: 'summary',
+  takeaways: 'takeaways',
+  takeaway: 'takeaways',
+  diagrams: 'mermaid',
+  diagram: 'mermaid',
+  graphs: 'graph',
+  graph: 'graph',
+  mermaid: 'mermaid'
+};
+
+function normalizeBlockType(type: unknown) {
+  if (typeof type !== 'string') return type;
+  const normalized = type.trim().toLowerCase();
+  return typeAliases[normalized] || normalized;
+}
 
 async function getAuthedUser(request: NextRequest) {
   const authHeader = request.headers.get('authorization') || '';
@@ -66,7 +134,8 @@ function buildPrompt({
   attachmentContent,
   language,
   selectedContentTypes,
-  userPreferences
+  userPreferences,
+  sourcesContent
 }: {
   pageTitle: string;
   manualContent: string;
@@ -74,6 +143,7 @@ function buildPrompt({
   language: string;
   selectedContentTypes: string[];
   userPreferences: string;
+  sourcesContent: string;
 }) {
   const systemPrompt = [
     'You are an educational assistant.',
@@ -81,15 +151,38 @@ function buildPrompt({
     '{ "blocks": [ { "type": "...", "content": { ... } } ] }',
     'No prose outside JSON.',
     'No HTML, no Markdown.',
-    'Only use these block types: heading, paragraph, callout, code, table, timeline, quiz, flashcard, mermaid, graph.',
+    'Only use these block types: heading, paragraph, quote, callout, list, checklist, definitions, code, image, divider, table, timeline, steps, quiz, flashcard, flashcard_deck, faq, summary, takeaways, mermaid, graph.',
     `Use language: ${language}.`,
-    'Keep output structured and concise for learning.'
+    'Keep output structured and concise for learning.',
+    'Schemas:',
+    'heading: { text: string, level?: number, subtitle?: string|null }',
+    'paragraph: { text: string, size?: "xs"|"sm"|"md"|"lg", tone?: "normal"|"muted"|"lead", align?: "left"|"center" }',
+    'quote: { text: string, author?: string|null, source?: string|null }',
+    'callout: { text: string, variant?: "info"|"note"|"warning"|"tip"|"example"|"definition"|"summary", title?: string|null }',
+    'list: { ordered: boolean, items: string[], nested?: boolean }',
+    'checklist: { items: { text: string, checked?: boolean }[] }',
+    'definitions: { items: { term: string, definition: string }[] }',
+    'code: { code: string, language?: string }',
+    'image: { url: string, alt?: string, caption?: string|null, size?: "sm"|"md"|"lg", align?: "left"|"center"|"right" }',
+    'divider: { label?: string|null, style?: "line"|"space"|"dotted" }',
+    'table: { columns?: string[], rows: string[][], caption?: string|null }',
+    'timeline: { items: { title: string, description: string, order?: string|number }[] }',
+    'steps: { steps: { title: string, description: string }[] }',
+    'quiz: { question: string, options: string[], correctIndex?: number, explanation?: string }',
+    'flashcard: { front: string, back: string }',
+    'flashcard_deck: { cards: { front: string, back: string }[] }',
+    'faq: { items: { question: string, answer: string }[] }',
+    'summary: { text: string }',
+    'takeaways: { items: string[] }',
+    'mermaid: { code: string }',
+    'graph: { nodes: { id: string, label?: string }[], edges: { from: string, to: string, label?: string }[] }'
   ].join(' ');
 
   const userPrompt = [
     `Page title: ${pageTitle || 'Untitled'}.`,
     `Selected content types: ${selectedContentTypes.join(', ') || 'all'}.`,
     userPreferences ? `User preferences: ${userPreferences}.` : 'User preferences: none.',
+    sourcesContent ? `Sources: ${sourcesContent}` : 'Sources: none.',
     manualContent ? `Page content: ${manualContent}` : 'Page content: empty.',
     attachmentContent ? `Attachment text: ${attachmentContent}` : 'Attachment text: none.'
   ].join('\n');
@@ -111,6 +204,7 @@ function validateBlocksPayload(payload: any) {
     if (!block || typeof block !== 'object') {
       throw new Error('Invalid block');
     }
+    block.type = normalizeBlockType(block.type);
     if (!allowedTypes.has(block.type)) {
       throw new Error('Unsupported block type');
     }
@@ -128,27 +222,88 @@ function validateBlockContent(block: any) {
       if (content.level !== undefined && typeof content.level !== 'number') {
         throw new Error('Invalid heading level');
       }
+      if (content.subtitle !== undefined && content.subtitle !== null && typeof content.subtitle !== 'string') {
+        throw new Error('Invalid heading subtitle');
+      }
       return;
     case 'paragraph':
       if (typeof content.text !== 'string') throw new Error('Invalid paragraph content');
       return;
+    case 'quote':
+      if (typeof content.text !== 'string') throw new Error('Invalid quote content');
+      return;
     case 'callout':
       if (typeof content.text !== 'string') throw new Error('Invalid callout content');
+      return;
+    case 'list':
+      if (!Array.isArray(content.items)) throw new Error('Invalid list content');
+      if (typeof content.ordered !== 'boolean') {
+        content.ordered = false;
+      }
+      if (typeof content.nested !== 'boolean') {
+        content.nested = false;
+      }
+      return;
+    case 'checklist':
+      if (!Array.isArray(content.items)) throw new Error('Invalid checklist content');
+      content.items = content.items.map((item: any) => ({
+        text: String(item?.text || ''),
+        checked: typeof item?.checked === 'boolean' ? item.checked : false
+      }));
+      return;
+    case 'definitions':
+      if (!Array.isArray(content.items)) throw new Error('Invalid definitions content');
       return;
     case 'code':
       if (typeof content.code !== 'string') throw new Error('Invalid code content');
       return;
+    case 'image':
+      if (typeof content.url !== 'string') throw new Error('Invalid image content');
+      return;
+    case 'divider':
+      return;
     case 'table':
       if (!Array.isArray(content.rows)) throw new Error('Invalid table content');
+      if (content.columns !== undefined && !Array.isArray(content.columns)) {
+        throw new Error('Invalid table content');
+      }
       return;
     case 'timeline':
       if (!Array.isArray(content.items)) throw new Error('Invalid timeline content');
       return;
+    case 'steps':
+      if (!Array.isArray(content.steps)) throw new Error('Invalid steps content');
+      return;
     case 'quiz':
-      if (!Array.isArray(content.questions)) throw new Error('Invalid quiz content');
+      if (Array.isArray(content.questions)) {
+        return;
+      }
+      if (typeof content.question !== 'string' || !Array.isArray(content.options)) {
+        throw new Error('Invalid quiz content');
+      }
       return;
     case 'flashcard':
-      if (!Array.isArray(content.cards)) throw new Error('Invalid flashcard content');
+      if (typeof content.front === 'string' && typeof content.back === 'string') {
+        return;
+      }
+      throw new Error('Invalid flashcard content');
+    case 'flashcard_deck':
+      if (!Array.isArray(content.cards)) {
+        if (Array.isArray(content.items)) {
+          content.cards = content.items;
+        } else {
+          throw new Error('Invalid flashcard deck content');
+        }
+      }
+      return;
+    case 'faq':
+      if (!Array.isArray(content.items)) throw new Error('Invalid faq content');
+      return;
+    case 'summary':
+      if (typeof content.text !== 'string') throw new Error('Invalid summary content');
+      return;
+    case 'takeaways':
+      if (!Array.isArray(content.items)) throw new Error('Invalid takeaways content');
       return;
     case 'mermaid':
       if (typeof content.code !== 'string') throw new Error('Invalid mermaid content');
@@ -171,20 +326,39 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as GeneratePayload;
   const pageId = body.page_id;
-  const language = body.language || 'en';
+  const language = body.language_code || 'en';
   const selectedContentTypes = Array.isArray(body.selected_content_types)
     ? body.selected_content_types
     : [];
+  const usePageContext = !!body.use_page_context;
+  const sources = Array.isArray(body.sources) ? body.sources : [];
   const userPreferences = (body.user_preferences || '').trim();
 
   if (!pageId || !language) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
+  if (sources.length === 0) {
+    return NextResponse.json({ error: 'Missing sources' }, { status: 400 });
+  }
+
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') {
+      return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
+    }
+    if (source.type === 'file' && (!source.content || source.content.trim().length === 0)) {
+      return NextResponse.json({ error: 'Empty file source' }, { status: 400 });
+    }
+  }
+
   const page = await getPageOwner(pageId);
   if (!page || page.owner_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  let manualBlocks: any[] = [];
+  let manualContent = '';
+  let attachmentContent = '';
 
   const { data: blocksData, error: blocksError } = await supabaseAdmin
     .from('blocks')
@@ -203,52 +377,60 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  const manualBlocks = Array.from(latestMap.values())
+  manualBlocks = Array.from(latestMap.values())
     .filter((block) => !block.is_deleted)
     .sort((a, b) => a.position - b.position);
 
-  const manualContent = normalizeText(
-    manualBlocks
-      .map((block) => {
-        switch (block.type) {
-          case 'heading':
-            return block.content?.text || '';
-          case 'paragraph':
-            return block.content?.text || '';
-          case 'callout':
-            return block.content?.text || '';
-          case 'code':
-            return block.content?.code || '';
-          case 'image':
-            return block.content?.alt || '';
-          case 'attachment':
-            return block.content?.display_name || '';
-          default:
-            return '';
-        }
-      })
-      .filter(Boolean)
-      .join(' ')
-  );
+  if (usePageContext) {
+    manualContent = normalizeText(
+      manualBlocks
+        .map((block) => {
+          switch (block.type) {
+            case 'heading':
+              return block.content?.text || '';
+            case 'paragraph':
+              return block.content?.text || '';
+            case 'callout':
+              return block.content?.text || '';
+            case 'code':
+              return block.content?.code || '';
+            case 'image':
+              return block.content?.url || '';
+            case 'attachment':
+              return block.content?.display_name || '';
+            default:
+              return '';
+          }
+        })
+        .filter(Boolean)
+        .join(' ')
+    );
 
-  const { data: attachmentsData, error: attachmentsError } = await supabaseAdmin
-    .from('attachments')
-    .select('parsed_text')
-    .eq('page_id', pageId);
+    const { data: attachmentsData, error: attachmentsError } = await supabaseAdmin
+      .from('attachments')
+      .select('parsed_text')
+      .eq('page_id', pageId);
 
-  if (attachmentsError) {
-    return NextResponse.json({ error: attachmentsError.message }, { status: 500 });
+    if (attachmentsError) {
+      return NextResponse.json({ error: attachmentsError.message }, { status: 500 });
+    }
+
+    attachmentContent = normalizeText(
+      (attachmentsData || [])
+        .map((item) => item.parsed_text || '')
+        .filter(Boolean)
+        .join(' ')
+    );
   }
-
-  const attachmentContent = normalizeText(
-    (attachmentsData || [])
-      .map((item) => item.parsed_text || '')
-      .filter(Boolean)
-      .join(' ')
-  );
 
   const combinedManual = truncateText(manualContent, MAX_CONTEXT_CHARS);
   const combinedAttachments = truncateText(attachmentContent, MAX_CONTEXT_CHARS);
+  const sourcesContent = truncateText(
+    normalizeText(
+      sources.map((source) => source.content || '').filter(Boolean).join(' ')
+    ),
+    MAX_CONTEXT_CHARS
+  );
 
   const { systemPrompt, userPrompt } = buildPrompt({
     pageTitle: page.title || '',
@@ -256,7 +438,8 @@ export async function POST(request: NextRequest) {
     attachmentContent: combinedAttachments,
     language,
     selectedContentTypes,
-    userPreferences
+    userPreferences,
+    sourcesContent
   });
 
   if (!process.env.OPENAI_API_KEY) {
@@ -312,7 +495,10 @@ export async function POST(request: NextRequest) {
         page_id: pageId,
         logical_id: crypto.randomUUID(),
         type: block.type,
-        content: block.content,
+        content: {
+          ...block.content,
+          _meta: { source: 'ai' }
+        },
         position,
         version: 1,
         created_at: now,

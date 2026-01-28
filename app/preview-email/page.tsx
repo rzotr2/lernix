@@ -72,27 +72,27 @@ export default function EmailPreviewPage() {
   const templateInfo = getTemplateInfo();
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
+    <div className="min-h-screen bg-[color:var(--background)] py-8 px-4 text-foreground">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             📧 Email Template Preview
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted">
             Preview your email templates before sending. These are rendered with React Email.
           </p>
         </div>
 
         {/* Template Selector */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+        <div className="glass-surface-strong rounded-lg p-4 mb-6">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedTemplate('welcome')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 selectedTemplate === 'welcome'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  : 'btn-ghost text-foreground'
               }`}
             >
               Welcome Email
@@ -102,7 +102,7 @@ export default function EmailPreviewPage() {
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 selectedTemplate === 'billing'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  : 'btn-ghost text-foreground'
               }`}
             >
               Billing Confirmation
@@ -112,7 +112,7 @@ export default function EmailPreviewPage() {
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 selectedTemplate === 'cancellation'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  : 'btn-ghost text-foreground'
               }`}
             >
               Cancellation Email
@@ -121,18 +121,18 @@ export default function EmailPreviewPage() {
         </div>
 
         {/* Template Info */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="glass-surface-strong rounded-lg p-4 mb-6">
+          <h2 className="text-lg font-semibold text-foreground">
             {templateInfo.name}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="text-muted text-sm">
             {templateInfo.description}
           </p>
         </div>
 
         {/* Email Preview in iframe */}
         <div 
-          className="bg-gray-300 dark:bg-gray-600 rounded-lg p-4 shadow-inner"
+          className="rounded-lg p-4 shadow-inner bg-[color:var(--surface-2)]"
         >
           <div className="bg-white rounded-lg overflow-hidden shadow-lg mx-auto" style={{ maxWidth: '650px' }}>
             {emailHtml ? (
@@ -144,14 +144,14 @@ export default function EmailPreviewPage() {
               />
             ) : (
               <div className="flex items-center justify-center h-96">
-                <p className="text-gray-500">Loading preview...</p>
+                <p className="text-muted">Loading preview...</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Footer Info */}
-        <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-6 text-center text-sm text-muted">
           <p>
             ✨ Built with{' '}
             <a 

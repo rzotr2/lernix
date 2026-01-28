@@ -42,12 +42,12 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-foreground">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-foreground">
           {t('dashboard.title')}
         </h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-muted">
           {t('dashboard.subtitle')}
         </p>
       </div>
@@ -63,13 +63,13 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-8 bg-white dark:bg-neutral-dark border border-slate-200 dark:border-slate-700 rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+      <div className="glass-surface-strong mt-8 rounded-xl p-6">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
           {t('activity.title')}
         </h2>
-        <div className="space-y-3 text-sm text-slate-700 dark:text-slate-300">
+        <div className="space-y-3 text-sm text-foreground">
           {recentActivity.length === 0 ? (
-            <p className="text-slate-500 dark:text-slate-400">
+            <p className="text-muted">
               {t('activity.empty')}
             </p>
           ) : (

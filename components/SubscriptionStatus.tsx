@@ -6,7 +6,7 @@ export function SubscriptionStatus() {
   const router = useRouter();
 
   if (isLoading) {
-    return <div className="animate-pulse">Checking subscription status...</div>;
+    return <div className="animate-pulse text-muted">Checking subscription status...</div>;
   }
 
   if (error) {
@@ -16,12 +16,12 @@ export function SubscriptionStatus() {
   if (subscription?.status === 'active' || subscription?.status === 'trialing') {
     return (
       <div className="text-center space-y-4">
-        <div className="bg-green-100 text-green-800 p-4 rounded-lg">
+        <div className="rounded-lg bg-green-100 p-4 text-green-800">
           You have an active subscription!
         </div>
         <button
           onClick={() => router.push('/profile')}
-          className="bg-primary hover:bg-primary-darker text-white px-6 py-2 rounded-lg"
+          className="btn-primary rounded-lg px-6 py-2 text-white"
         >
           View Subscription Details
         </button>

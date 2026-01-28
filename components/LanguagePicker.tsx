@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { locales } from '@/i18n/config';
 
@@ -20,9 +23,11 @@ export default function LanguagePicker({
 }: LanguagePickerProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLocale = event.target.value as (typeof locales)[number];
+  const handleChange = (newLocale: (typeof locales)[number]) => {
     const segments = pathname.split('/');
     segments[1] = newLocale;
     const nextPath = segments.join('/') || `/${newLocale}`;
@@ -31,32 +36,87 @@ export default function LanguagePicker({
     router.push(nextPath);
   };
 
-  return (
-    <div className="language-picker inline-flex items-center whitespace-nowrap">
-      <form className="language-picker__form">
-        <label htmlFor="language-picker-select" className="sr-only">
-          Select your language
-        </label>
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-        <div className="relative">
-          <select
-            id="language-picker-select"
-            value={currentLocale}
-            onChange={handleChange}
-            aria-label={`Language: ${languages.find((lang) => lang.code === currentLocale)?.name || 'English'}`}
-            className="appearance-none bg-surface-light dark:bg-surface-dark text-text dark:text-text-dark border border-gray-200 dark:border-gray-700 rounded-full px-3 pr-9 py-2 text-sm font-medium shadow-subtle hover:shadow-hover transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer text-center w-14 sm:w-16"
+  const currentLanguage =
+    languages.find((lang) => lang.code === currentLocale) || languages[0];
+
+  return (
+    <div className="relative inline-flex items-center whitespace-nowrap">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={`Language: ${currentLanguage.name}`}
+        onClick={() => setIsOpen((open) => !open)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setIsOpen(false);
+          }
+        }}
+        className="btn-ghost flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm font-medium text-foreground shadow-[0_0_20px_rgba(15,23,42,0.12)] backdrop-blur-xl transition hover:shadow-[0_0_18px_rgba(56,189,248,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+      >
+        <span className="text-base">{currentLanguage.label}</span>
+        <ChevronDown strokeWidth={1.5} className="h-3.5 w-3.5 text-muted" />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            ref={menuRef}
+            role="menu"
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+            className="absolute right-0 top-12 z-50 w-40 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-2 text-sm text-foreground shadow-[0_15px_40px_rgba(2,6,23,0.25)] backdrop-blur-xl"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setIsOpen(false);
+                buttonRef.current?.focus();
+              }
+            }}
           >
-            {languages.map((lang) => (
-              <option key={lang.code} value={lang.code} aria-label={lang.name} title={lang.name}>
-                {lang.label}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400">
-            ▾
-          </span>
-        </div>
-      </form>
+            {languages.map((lang) => {
+              const isActive = lang.code === currentLocale;
+              return (
+                <button
+                  key={lang.code}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    handleChange(lang.code);
+                    setIsOpen(false);
+                    buttonRef.current?.focus();
+                  }}
+                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
+                    isActive
+                      ? 'bg-white/10 text-foreground'
+                      : 'text-muted hover:bg-white/5 hover:text-foreground'
+                  }`}
+                >
+                  <span>{lang.label}</span>
+                  <span className="text-xs text-muted">{lang.name}</span>
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -41,11 +41,11 @@ function ResetPasswordContent() {
 
   if (!email) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[color:var(--background)]">
+        <div className="glass-surface-strong max-w-md w-full space-y-8 rounded-2xl p-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold">Invalid Request</h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-300">
+            <h2 className="text-3xl font-bold text-foreground">Invalid Request</h2>
+            <p className="mt-2 text-muted">
               No email address provided. Please try the reset password link again.
             </p>
           </div>
@@ -55,17 +55,17 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[color:var(--background)]">
+      <div className="glass-surface-strong max-w-md w-full space-y-8 rounded-2xl p-6">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">Reset Password</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-300">
+          <h2 className="text-3xl font-bold text-foreground">Reset Password</h2>
+          <p className="mt-2 text-muted">
             Sending reset link to: <span className="font-medium">{email}</span>
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 text-red-500 p-4 rounded-lg">
+          <div className="bg-red-50 text-red-500 p-4 rounded-lg">
             {error}
             <button
               onClick={handleResetPassword}
@@ -77,11 +77,11 @@ function ResetPasswordContent() {
         )}
 
         {success ? (
-          <div className="bg-green-50 dark:bg-green-900/30 text-green-500 p-4 rounded-lg">
+          <div className="bg-green-50 text-green-500 p-4 rounded-lg">
             Reset link has been sent to your email address. Please check your inbox.
           </div>
         ) : (
-          <div className="text-center text-gray-600 dark:text-gray-300">
+          <div className="text-center text-muted">
             {isLoading ? 'Sending reset link...' : 'Processing your request...'}
           </div>
         )}

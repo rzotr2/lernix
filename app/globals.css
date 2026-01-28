@@ -3,16 +3,60 @@
 @tailwind utilities;
 
 :root {
-  --background: #F8F9FA;
-  --foreground: #2F3E46;
   --topbar-height: 4rem;
+
+  /* Space-Grade Light */
+  --background: #F4F7FB;
+  --foreground: #0B0F19;
+  --muted: #64748B;
+  --surface-1: rgba(255, 255, 255, 0.72);
+  --surface-2: rgba(255, 255, 255, 0.85);
+  --surface-3: rgba(248, 250, 252, 0.9);
+  --surface-strong: rgba(255, 255, 255, 0.95);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.12);
+  --accent: #38BDF8;
+  --accent-strong: #2563EB;
+  --glow: 0 0 28px rgba(56, 189, 248, 0.2);
+  --shadow-soft: 0 18px 50px rgba(15, 23, 42, 0.12);
+  --shadow-strong: 0 22px 70px rgba(15, 23, 42, 0.16);
+
+  --input-bg: rgba(255, 255, 255, 0.8);
+  --input-border: rgba(15, 23, 42, 0.12);
+  --input-focus: rgba(56, 189, 248, 0.45);
+
+  --btn-primary-from: #7C3AED;
+  --btn-primary-to: #EC4899;
+  --btn-primary-shadow: 0 18px 40px rgba(124, 58, 237, 0.35);
+  --btn-ghost-bg: rgba(15, 23, 42, 0.04);
+  --btn-ghost-hover: rgba(15, 23, 42, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1A1B26;
-    --foreground: #F8F9FA;
-  }
+.dark {
+  --background: #0B0F19;
+  --foreground: #F8FAFC;
+  --muted: #94A3B8;
+  --surface-1: rgba(2, 6, 23, 0.65);
+  --surface-2: rgba(15, 23, 42, 0.72);
+  --surface-3: rgba(15, 23, 42, 0.85);
+  --surface-strong: rgba(2, 6, 23, 0.9);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --accent: #38BDF8;
+  --accent-strong: #60A5FA;
+  --glow: 0 0 32px rgba(56, 189, 248, 0.35);
+  --shadow-soft: 0 18px 50px rgba(2, 6, 23, 0.45);
+  --shadow-strong: 0 24px 70px rgba(2, 6, 23, 0.6);
+
+  --input-bg: rgba(15, 23, 42, 0.6);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-focus: rgba(56, 189, 248, 0.5);
+
+  --btn-primary-from: #8B5CF6;
+  --btn-primary-to: #EC4899;
+  --btn-primary-shadow: 0 20px 50px rgba(139, 92, 246, 0.45);
+  --btn-ghost-bg: rgba(255, 255, 255, 0.05);
+  --btn-ghost-hover: rgba(255, 255, 255, 0.1);
 }
 
 body {
@@ -23,18 +67,57 @@ body {
   overflow-x: hidden;
 }
 
-/* Add some cooking-themed utility classes */
 @layer components {
-  .recipe-card {
-    @apply bg-white dark:bg-neutral-dark rounded-lg shadow-sm border border-primary/10 dark:border-primary/20 transition-all duration-300 hover:shadow-md;
+  .glass-surface {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-soft);
   }
-  
-  .cooking-button {
-    @apply bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-300 transform hover:scale-102 active:scale-98;
+
+  .glass-surface-strong {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(24px);
+    box-shadow: var(--shadow-strong);
   }
-  
-  .accent-button {
-    @apply bg-secondary hover:bg-secondary-dark text-white rounded-lg transition-all duration-300;
+
+  .surface-border {
+    border: 1px solid var(--border);
+  }
+
+  .text-foreground {
+    color: var(--foreground);
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--btn-primary-from), var(--btn-primary-to));
+    color: #ffffff;
+    box-shadow: var(--btn-primary-shadow);
+  }
+
+  .btn-ghost {
+    background: var(--btn-ghost-bg);
+    color: var(--foreground);
+  }
+
+  .btn-ghost:hover {
+    background: var(--btn-ghost-hover);
+  }
+
+  .input-field {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--foreground);
+  }
+
+  .input-field:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--input-focus);
   }
 }
 

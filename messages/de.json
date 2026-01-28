@@ -64,28 +64,155 @@
     },
     "placeholders": {
       "heading": "Überschrift",
+      "subtitle": "Untertitel (optional)",
       "paragraph": "Schreibe etwas...",
+      "quote": "Zitattext",
+      "quoteAuthor": "Autor (optional)",
+      "quoteSource": "Quelle (optional)",
       "callout": "Hinweistext",
+      "calloutTitle": "Titel (optional)",
+      "list": "Listeneinträge",
+      "listItem": "Listeneintrag",
+      "checklist": "Checkliste",
+      "checklistItem": "Checklistenpunkt",
+      "definitions": "Definitionen",
+      "definitionTerm": "Begriff",
+      "definition": "Definition",
       "code": "Codebeispiel",
       "codeLang": "Sprache",
       "image": "Bild per URL hinzufügen",
       "imageUrl": "Bild-URL",
       "imageAlt": "Bildbeschreibung",
+      "imageCaption": "Bildunterschrift (optional)",
+      "dividerLabel": "Trennerbeschriftung (optional)",
+      "tableCaption": "Tabellenüberschrift (optional)",
+      "timelineTitle": "Titel",
+      "timelineOrder": "Reihenfolge",
+      "timelineDescription": "Beschreibung",
+      "stepTitle": "Schritt-Titel",
+      "stepDescription": "Schritt-Beschreibung",
+      "faqQuestion": "Frage",
+      "faqAnswer": "Antwort",
+      "summary": "Zusammenfassung",
+      "takeaways": "Kernaussagen",
+      "takeawaysItem": "Kernaussage",
+      "flashcardFront": "Vorderseite",
+      "flashcardBack": "Rückseite",
+      "mermaid": "Mermaid-Code",
+      "graph": "Graph-Inhalt",
       "attachment": "Anhang Platzhalter"
     },
     "callout": {
       "info": "Info",
       "note": "Notiz",
-      "warning": "Warnung"
+      "warning": "Warnung",
+      "tip": "Tipp",
+      "example": "Beispiel",
+      "definition": "Definition",
+      "summary": "Zusammenfassung"
     },
     "types": {
       "heading": "Überschrift",
       "paragraph": "Absatz",
+      "quote": "Zitat",
       "callout": "Hinweis",
+      "list": "Liste",
+      "checklist": "Checkliste",
+      "definitions": "Definitionen",
       "code": "Code",
       "image": "Bild",
       "attachment": "Anhang",
+      "table": "Tabelle",
+      "timeline": "Zeitlinie",
+      "steps": "Schritte",
+      "quiz": "Quiz",
+      "flashcard": "Karteikarte",
+      "flashcardDeck": "Karteikarten-Deck",
+      "faq": "FAQ",
+      "summary": "Zusammenfassung",
+      "takeaways": "Kernaussagen",
+      "mermaid": "Diagramm",
+      "graph": "Graph",
       "divider": "Trenner"
+    },
+    "editor": {
+      "headingLevel": "Überschriftenebene",
+      "columns": "Spalten",
+      "rows": "Zeilen",
+      "addColumn": "Spalte hinzufügen",
+      "addRow": "Zeile hinzufügen",
+      "addItem": "Eintrag hinzufügen",
+      "remove": "Entfernen",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten"
+    },
+    "labels": {
+      "column": "Spalte {index}",
+      "row": "Zeile {index}",
+      "item": "Eintrag {index}",
+      "question": "Frage {index}",
+      "option": "Option {index}",
+      "card": "Karte {index}",
+      "step": "Schritt {index}",
+      "definition": "Definition {index}",
+      "headingLevel": "H{level}"
+    },
+    "paragraph": {
+      "sizeLabel": "Größe",
+      "toneLabel": "Ton",
+      "alignLabel": "Ausrichtung",
+      "size": { "xs": "XS", "sm": "Klein", "md": "Mittel", "lg": "Groß" },
+      "tone": { "normal": "Normal", "muted": "Gedämpft", "lead": "Lead" },
+      "align": { "left": "Links", "center": "Zentriert" }
+    },
+    "list": {
+      "ordered": "Nummerierte Liste",
+      "nested": "Verschachtelt",
+      "nestedHint": "Verwende „Eltern::Kind1|Kind2“ für Unterpunkte."
+    },
+    "image": {
+      "sizeLabel": "Bildgröße",
+      "alignLabel": "Ausrichtung",
+      "size": { "sm": "Klein", "md": "Mittel", "lg": "Groß" },
+      "align": { "left": "Links", "center": "Zentriert", "right": "Rechts" }
+    },
+    "timeline": {
+      "itemsLabel": "Zeitleisten-Elemente"
+    },
+    "steps": {
+      "stepsLabel": "Schritte"
+    },
+    "quiz": {
+      "questionsLabel": "Fragen",
+      "addQuestion": "Frage hinzufügen",
+      "optionsLabel": "Optionen",
+      "addOption": "Option hinzufügen",
+      "correctOptionPlaceholder": "Richtige Option (optional)"
+    },
+    "flashcardDeck": {
+      "cardsLabel": "Karten",
+      "addCard": "Karte hinzufügen"
+    },
+    "faq": {
+      "itemsLabel": "FAQ-Elemente"
+    },
+    "graph": {
+      "nodesLabel": "Knoten",
+      "addNode": "Knoten hinzufügen",
+      "nodeId": "Knoten-ID",
+      "nodeLabel": "Bezeichnung",
+      "edgesLabel": "Kanten",
+      "addEdge": "Kante hinzufügen",
+      "edgeFrom": "Von",
+      "edgeTo": "Nach",
+      "edgeLabel": "Bezeichnung"
+    },
+    "divider": {
+      "style": {
+        "line": "Linie",
+        "space": "Abstand",
+        "dotted": "Gepunktet"
+      }
     },
     "errors": {
       "load": "Blöcke konnten nicht geladen werden.",
@@ -98,17 +225,47 @@
   "ai": {
     "title": "AI-Eingabe",
     "fabAria": "AI-Eingabe öffnen",
-    "languageLabel": "AI-Sprache",
+    "languageLabel": "Generierungssprache",
+    "typesLabel": "Inhaltstypen",
+    "usePageContext": "Seitenkontext verwenden",
+    "loading": "Inhalt wird generiert...",
     "preferencesLabel": "Optionale Vorgaben",
     "preferencesPlaceholder": "Beispiel: kurz halten und Stichpunkte nutzen.",
     "generate": "Generieren",
     "generating": "Wird generiert...",
     "generateFailed": "Generierung fehlgeschlagen. Bitte erneut versuchen.",
-    "helper": "AI-Generierung ist bald verfügbar.",
+    "helper": "Die Generierung nutzt die ausgewählten Quellen.",
     "languages": {
       "english": "Englisch",
       "german": "Deutsch",
-      "ukrainian": "Ukrainisch"
+      "ukrainian": "Ukrainisch",
+      "french": "Französisch",
+      "spanish": "Spanisch",
+      "italian": "Italienisch",
+      "portuguese": "Portugiesisch",
+      "dutch": "Niederländisch",
+      "polish": "Polnisch",
+      "turkish": "Türkisch",
+      "japanese": "Japanisch",
+      "korean": "Koreanisch"
+    },
+    "sources": {
+      "title": "Quellen",
+      "add": "Hinzufügen",
+      "remove": "Entfernen",
+      "empty": "Mindestens eine Quelle hinzufügen.",
+      "emptyText": "Bitte zuerst Text eingeben.",
+      "emptyParsed": "Für diese Datei wurde kein Text erkannt.",
+      "manualLabel": "Text als Quelle hinzufügen",
+      "manualPlaceholder": "Text einfügen oder eingeben.",
+      "addText": "Als Quelle hinzufügen",
+      "attachFile": "Datei anhängen",
+      "attachButton": "Datei hochladen",
+      "attachHint": "Unterstützt: pdf, docx, md, txt.",
+      "uploading": "Wird hochgeladen...",
+      "uploadFailed": "Datei konnte nicht geparst werden.",
+      "attachmentsTitle": "Hochgeladene Dateien",
+      "fileLabel": "Temporäre Datei"
     },
     "stub": {
       "table": "AI-Tabelle (Vorschau folgt).",
@@ -118,13 +275,37 @@
       "mermaid": "AI-Diagramm (Vorschau folgt).",
       "graph": "AI-Graph (Vorschau folgt)."
     },
+    "blocks": {
+      "table": "Tabelleninhalt nicht verfügbar.",
+      "flashcard": "Karteikarteninhalt nicht verfügbar.",
+      "flashcardFront": "Vorderseite",
+      "flashcardBack": "Rückseite",
+      "flashcardAnswerLabel": "Antwort",
+      "quiz": "Quiz-Inhalt nicht verfügbar.",
+      "quizCorrect": "Richtig",
+      "quizIncorrect": "Falsch",
+      "quizCorrectAnswerLabel": "Richtige Antwort",
+      "quizExplanationLabel": "Begründung",
+      "quizProgress": "Fortschritt",
+      "timeline": "Zeitlinieninhalt nicht verfügbar.",
+      "timelineItem": "Zeitlinienpunkt",
+      "mermaid": "Diagramminhalt nicht verfügbar.",
+      "mermaidError": "Mermaid-Syntaxfehler.",
+      "graph": "Graph-Inhalt nicht verfügbar."
+    },
     "types": {
       "notes": "Notizen",
       "flashcards": "Karteikarten",
       "quiz": "Quiz",
       "tables": "Tabellen",
       "timeline": "Zeitlinie",
-      "diagrams": "Diagramme"
+      "diagrams": "Diagramme",
+      "lists": "Listen",
+      "definitions": "Definitionen",
+      "faq": "FAQ",
+      "summary": "Zusammenfassung",
+      "takeaways": "Kernaussagen",
+      "steps": "Schritte"
     }
   },
   "dashboard": {

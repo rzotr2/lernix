@@ -39,11 +39,11 @@ export function AccountManagement() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
-      <h2 className="text-xl font-semibold mb-4">Account Management</h2>
+    <div className="glass-surface-strong mb-8 rounded-2xl p-6">
+      <h2 className="mb-4 text-xl font-semibold text-foreground">Account Management</h2>
       
       {/* User Information */}
-      <div className="mb-6 space-y-2">
+      <div className="mb-6 space-y-2 text-muted">
         <p><span className="font-medium">Email:</span> {user?.email}</p>
         <p><span className="font-medium">Last Sign In:</span> {new Date(user?.last_sign_in_at || '').toLocaleString()}</p>
         <p><span className="font-medium">Account Type:</span> {isOAuthUser ? 'Google Account' : 'Email Account'}</p>
@@ -53,7 +53,7 @@ export function AccountManagement() {
         {!isOAuthUser && (
           <button
             onClick={() => router.push(`/reset-password?email=${encodeURIComponent(user?.email || '')}`)}
-            className="block w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+            className="btn-ghost block w-full rounded-lg px-4 py-2 text-left"
           >
             Reset Password
           </button>
@@ -69,10 +69,10 @@ export function AccountManagement() {
 
       {/* Delete Account Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-semibold mb-4">Delete Account?</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="glass-surface-strong w-full max-w-md rounded-2xl p-6">
+            <h3 className="mb-4 text-xl font-semibold text-foreground">Delete Account?</h3>
+            <p className="mb-6 text-muted">
               This action cannot be undone. All your data will be permanently deleted.
             </p>
             {error && (
@@ -81,14 +81,14 @@ export function AccountManagement() {
             <div className="flex justify-end gap-4">
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-300"
+                className="btn-ghost rounded-lg px-4 py-2 text-muted"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteAccount}
                 disabled={isLoading}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg disabled:opacity-50"
+                className="rounded-lg bg-red-500 px-4 py-2 text-white disabled:opacity-50"
               >
                 {isLoading ? 'Deleting...' : 'Delete Account'}
               </button>

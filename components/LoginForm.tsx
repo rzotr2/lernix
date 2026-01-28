@@ -28,11 +28,11 @@ export function LoginForm({
   };
 
   return (
-    <div className="w-full space-y-8 p-8 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-subtle border border-gray-200 dark:border-gray-700">
+    <div className="glass-surface-strong w-full space-y-8 rounded-2xl p-8">
       <div className="text-center">
         <div className="flex items-center justify-center gap-2 mb-6">
           <span className="text-3xl">🎬</span>
-          <h2 className="text-2xl font-medium text-text dark:text-text-dark">
+          <h2 className="text-2xl font-medium text-foreground">
             NextTemp
           </h2>
         </div>
@@ -47,7 +47,7 @@ export function LoginForm({
       <div className="mt-6 space-y-4">
         <button
           onClick={onGoogleSignIn}
-          className="w-full py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-full shadow-subtle text-text dark:text-text-dark bg-surface-light dark:bg-surface-dark hover:bg-neutral dark:hover:bg-neutral-dark transition-all flex items-center justify-center"
+          className="btn-ghost flex w-full items-center justify-center rounded-full border border-[color:var(--border)] px-4 py-2.5 text-foreground transition-all"
         >
           <Image
             src="/Google-Logo.png"
@@ -59,15 +59,15 @@ export function LoginForm({
           Sign in with Google
         </button>
 
-        <div className="flex items-center my-6">
-          <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
-          <span className="mx-4 text-sm text-gray-500 dark:text-gray-400">OR</span>
-          <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
+        <div className="my-6 flex items-center">
+          <div className="flex-grow border-t border-[color:var(--border)]"></div>
+          <span className="mx-4 text-sm text-muted">OR</span>
+          <div className="flex-grow border-t border-[color:var(--border)]"></div>
         </div>
       </div>
 
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h2 className="text-2xl font-bold text-foreground">
           {isSignUp ? 'Create an account' : 'Are you an Email User?'}
         </h2>
       </div>
@@ -79,14 +79,14 @@ export function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
-            className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+            className="input-field block w-full rounded-lg px-3 py-2 placeholder:text-muted transition-all"
           />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+            className="input-field block w-full rounded-lg px-3 py-2 placeholder:text-muted transition-all"
           />
         </div>
 
@@ -94,7 +94,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={() => setIsForgotPasswordOpen(true)}
-            className="text-sm text-primary hover:text-primary-dark transition-colors"
+            className="text-sm text-blue-500 hover:text-blue-600 transition-colors"
           >
             Forgot your password?
           </button>
@@ -108,7 +108,7 @@ export function LoginForm({
         <button 
           type="submit" 
           disabled={isLoading}
-          className="w-full py-2.5 px-4 border border-transparent rounded-full shadow-sm text-white bg-primary hover:bg-primary-dark disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all"
+          className="btn-primary w-full rounded-full px-4 py-2.5 text-white transition-all disabled:opacity-50 focus:outline-none"
         >
           {isSignUp ? 'Sign up' : 'Sign in'} with Email
         </button>
@@ -117,7 +117,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={() => setIsSignUp(!isSignUp)}
-            className="text-primary hover:text-primary-dark transition-colors"
+            className="text-blue-500 hover:text-blue-600 transition-colors"
           >
             {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
           </button>

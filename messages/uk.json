@@ -64,28 +64,155 @@
     },
     "placeholders": {
       "heading": "Текст заголовка",
+      "subtitle": "Підзаголовок (опційно)",
       "paragraph": "Напишіть щось...",
+      "quote": "Текст цитати",
+      "quoteAuthor": "Автор (опційно)",
+      "quoteSource": "Джерело (опційно)",
       "callout": "Текст виділення",
+      "calloutTitle": "Заголовок (опційно)",
+      "list": "Пункти списку",
+      "listItem": "Пункт списку",
+      "checklist": "Чекліст",
+      "checklistItem": "Пункт чекліста",
+      "definitions": "Визначення",
+      "definitionTerm": "Термін",
+      "definition": "Визначення",
       "code": "Фрагмент коду",
       "codeLang": "Мова",
       "image": "Додайте зображення за URL",
       "imageUrl": "URL зображення",
       "imageAlt": "Опис зображення",
+      "imageCaption": "Підпис (опційно)",
+      "dividerLabel": "Підпис роздільника (опційно)",
+      "tableCaption": "Підпис таблиці (опційно)",
+      "timelineTitle": "Заголовок",
+      "timelineOrder": "Порядок",
+      "timelineDescription": "Опис",
+      "stepTitle": "Назва кроку",
+      "stepDescription": "Опис кроку",
+      "faqQuestion": "Питання",
+      "faqAnswer": "Відповідь",
+      "summary": "Текст підсумку",
+      "takeaways": "Ключові висновки",
+      "takeawaysItem": "Висновок",
+      "flashcardFront": "Лицьова сторона",
+      "flashcardBack": "Зворотна сторона",
+      "mermaid": "Mermaid-код",
+      "graph": "Вміст графа",
       "attachment": "Плейсхолдер вкладення"
     },
     "callout": {
       "info": "Інфо",
       "note": "Нотатка",
-      "warning": "Попередження"
+      "warning": "Попередження",
+      "tip": "Порада",
+      "example": "Приклад",
+      "definition": "Визначення",
+      "summary": "Підсумок"
     },
     "types": {
       "heading": "Заголовок",
       "paragraph": "Абзац",
+      "quote": "Цитата",
       "callout": "Виділення",
+      "list": "Список",
+      "checklist": "Чекліст",
+      "definitions": "Визначення",
       "code": "Код",
       "image": "Зображення",
       "attachment": "Вкладення",
+      "table": "Таблиця",
+      "timeline": "Хронологія",
+      "steps": "Кроки",
+      "quiz": "Тест",
+      "flashcard": "Флеш-картка",
+      "flashcardDeck": "Набір флеш-карток",
+      "faq": "FAQ",
+      "summary": "Підсумок",
+      "takeaways": "Ключові висновки",
+      "mermaid": "Діаграма",
+      "graph": "Граф",
       "divider": "Роздільник"
+    },
+    "editor": {
+      "headingLevel": "Рівень заголовка",
+      "columns": "Колонки",
+      "rows": "Рядки",
+      "addColumn": "Додати колонку",
+      "addRow": "Додати рядок",
+      "addItem": "Додати пункт",
+      "remove": "Видалити",
+      "moveUp": "Вгору",
+      "moveDown": "Вниз"
+    },
+    "labels": {
+      "column": "Колонка {index}",
+      "row": "Рядок {index}",
+      "item": "Пункт {index}",
+      "question": "Питання {index}",
+      "option": "Варіант {index}",
+      "card": "Картка {index}",
+      "step": "Крок {index}",
+      "definition": "Визначення {index}",
+      "headingLevel": "H{level}"
+    },
+    "paragraph": {
+      "sizeLabel": "Розмір",
+      "toneLabel": "Тон",
+      "alignLabel": "Вирівнювання",
+      "size": { "xs": "XS", "sm": "Малий", "md": "Середній", "lg": "Великий" },
+      "tone": { "normal": "Звичайний", "muted": "Приглушений", "lead": "Лід" },
+      "align": { "left": "Ліворуч", "center": "По центру" }
+    },
+    "list": {
+      "ordered": "Нумерований список",
+      "nested": "Вкладені пункти",
+      "nestedHint": "Використовуйте «Батьківський::Дочірній1|Дочірній2» для підпунктів."
+    },
+    "image": {
+      "sizeLabel": "Розмір зображення",
+      "alignLabel": "Вирівнювання",
+      "size": { "sm": "Малий", "md": "Середній", "lg": "Великий" },
+      "align": { "left": "Ліворуч", "center": "По центру", "right": "Праворуч" }
+    },
+    "timeline": {
+      "itemsLabel": "Елементи хронології"
+    },
+    "steps": {
+      "stepsLabel": "Кроки"
+    },
+    "quiz": {
+      "questionsLabel": "Питання",
+      "addQuestion": "Додати питання",
+      "optionsLabel": "Варіанти",
+      "addOption": "Додати варіант",
+      "correctOptionPlaceholder": "Правильний варіант (опційно)"
+    },
+    "flashcardDeck": {
+      "cardsLabel": "Картки",
+      "addCard": "Додати картку"
+    },
+    "faq": {
+      "itemsLabel": "FAQ елементи"
+    },
+    "graph": {
+      "nodesLabel": "Вузли",
+      "addNode": "Додати вузол",
+      "nodeId": "ID вузла",
+      "nodeLabel": "Підпис",
+      "edgesLabel": "Ребра",
+      "addEdge": "Додати ребро",
+      "edgeFrom": "Звідки",
+      "edgeTo": "Куди",
+      "edgeLabel": "Підпис"
+    },
+    "divider": {
+      "style": {
+        "line": "Лінія",
+        "space": "Пробіл",
+        "dotted": "Пунктир"
+      }
     },
     "errors": {
       "load": "Не вдалося завантажити блоки.",
@@ -98,17 +225,47 @@
   "ai": {
     "title": "AI-ввід",
     "fabAria": "Відкрити AI-ввід",
-    "languageLabel": "Мова AI",
+    "languageLabel": "Мова генерації",
+    "typesLabel": "Типи контенту",
+    "usePageContext": "Використати контекст сторінки",
+    "loading": "Генеруємо контент...",
     "preferencesLabel": "Додаткові побажання",
     "preferencesPlaceholder": "Наприклад: коротко і у вигляді списку.",
     "generate": "Згенерувати",
     "generating": "Генеруємо...",
     "generateFailed": "Не вдалося згенерувати. Спробуйте ще раз.",
-    "helper": "AI-генерація скоро буде доступна.",
+    "helper": "Генерація використовує вибрані джерела.",
     "languages": {
       "english": "Англійська",
       "german": "Німецька",
-      "ukrainian": "Українська"
+      "ukrainian": "Українська",
+      "french": "Французька",
+      "spanish": "Іспанська",
+      "italian": "Італійська",
+      "portuguese": "Португальська",
+      "dutch": "Нідерландська",
+      "polish": "Польська",
+      "turkish": "Турецька",
+      "japanese": "Японська",
+      "korean": "Корейська"
+    },
+    "sources": {
+      "title": "Джерела",
+      "add": "Додати",
+      "remove": "Прибрати",
+      "empty": "Додайте щонайменше одне джерело.",
+      "emptyText": "Спочатку введіть текст.",
+      "emptyParsed": "У цьому файлі немає розпізнаного тексту.",
+      "manualLabel": "Додати текст як джерело",
+      "manualPlaceholder": "Вставте або введіть текст.",
+      "addText": "Додати як джерело",
+      "attachFile": "Додати файл",
+      "attachButton": "Завантажити файл",
+      "attachHint": "Підтримуються: pdf, docx, md, txt.",
+      "uploading": "Завантажуємо...",
+      "uploadFailed": "Не вдалося розпізнати файл.",
+      "attachmentsTitle": "Завантажені файли",
+      "fileLabel": "Тимчасовий файл"
     },
     "stub": {
       "table": "AI-таблиця (перегляд скоро).",
@@ -118,13 +275,37 @@
       "mermaid": "AI-діаграма (перегляд скоро).",
       "graph": "AI-граф (перегляд скоро)."
     },
+    "blocks": {
+      "table": "Вміст таблиці недоступний.",
+      "flashcard": "Вміст флеш-карток недоступний.",
+      "flashcardFront": "Лицьова сторона",
+      "flashcardBack": "Зворотна сторона",
+      "flashcardAnswerLabel": "Відповідь",
+      "quiz": "Вміст тесту недоступний.",
+      "quizCorrect": "Правильно",
+      "quizIncorrect": "Неправильно",
+      "quizCorrectAnswerLabel": "Правильна відповідь",
+      "quizExplanationLabel": "Пояснення",
+      "quizProgress": "Прогрес",
+      "timeline": "Вміст хронології недоступний.",
+      "timelineItem": "Подія",
+      "mermaid": "Вміст діаграми недоступний.",
+      "mermaidError": "Помилка синтаксису Mermaid.",
+      "graph": "Вміст графа недоступний."
+    },
     "types": {
       "notes": "Нотатки",
       "flashcards": "Флеш-картки",
       "quiz": "Тест",
       "tables": "Таблиці",
       "timeline": "Хронологія",
-      "diagrams": "Діаграми"
+      "diagrams": "Діаграми",
+      "lists": "Списки",
+      "definitions": "Визначення",
+      "faq": "FAQ",
+      "summary": "Підсумок",
+      "takeaways": "Ключові висновки",
+      "steps": "Кроки"
     }
   },
   "dashboard": {

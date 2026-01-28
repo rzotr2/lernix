@@ -35,20 +35,20 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="max-w-md w-full space-y-8 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-[color:var(--background)]">
+      <div className="glass-surface-strong max-w-md w-full space-y-8 p-6 rounded-xl">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+          <h2 className="mt-6 text-3xl font-bold text-foreground">
             Check Your Email
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm text-muted">
             We sent a verification link to{' '}
             <span className="font-medium">{email}</span>
           </p>
         </div>
 
         <div className="mt-8 space-y-6">
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-center text-sm text-muted">
             <p>Please check your email and click the verification link to continue.</p>
             <p className="mt-4">
               Didn&apos;t receive the email? You can request a new one{' '}
@@ -57,7 +57,7 @@ function VerifyEmailContent() {
               ) : (
                 <button
                   onClick={handleResendEmail}
-                  className="text-primary-darker hover:text-primary"
+                  className="text-blue-600 hover:text-blue-700"
                 >
                   now
                 </button>
@@ -68,7 +68,7 @@ function VerifyEmailContent() {
           <div className="text-center">
             <button
               onClick={() => router.push('/login')}
-              className="text-sm text-primary-darker hover:text-primary"
+              className="text-sm text-blue-600 hover:text-blue-700"
             >
               ← Back to login
             </button>

@@ -30,14 +30,14 @@ export default function PaymentPage() {
   // Add error handling
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
+      <div className="flex flex-col items-center justify-center min-h-[80vh] p-4 text-foreground">
         <h1 className="text-xl md:text-2xl font-bold mb-4 text-center">Error Loading Subscription</h1>
-        <p className="text-gray-600 mb-4 text-center">
+        <p className="text-muted mb-4 text-center">
           Unable to load subscription information. Please try again later.
         </p>
         <button
           onClick={() => router.push('/pay')}
-          className="bg-primary hover:bg-primary-darker text-white px-6 py-2 rounded-lg"
+          className="btn-primary rounded-lg px-6 py-2 text-white"
         >
           Retry
         </button>
@@ -47,14 +47,14 @@ export default function PaymentPage() {
 
   if (!canSubscribe) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
+      <div className="flex flex-col items-center justify-center min-h-[80vh] p-4 text-foreground">
         <h1 className="text-xl md:text-2xl font-bold mb-4 text-center">Subscription Not Available</h1>
-        <p className="text-gray-600 mb-4 text-center">
+        <p className="text-muted mb-4 text-center">
           You already have an active or pending subscription.
         </p>
         <button
           onClick={() => router.push('/profile')}
-          className="bg-primary hover:bg-primary-darker text-white px-6 py-2 rounded-lg"
+          className="btn-primary rounded-lg px-6 py-2 text-white"
         >
           View Subscription
         </button>
@@ -63,7 +63,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] p-4 text-foreground">
       <h1 className="text-xl md:text-2xl font-bold mb-6 text-center">Complete Your Purchase</h1>
       
       <SubscriptionStatus />
