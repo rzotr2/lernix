@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
@@ -27,6 +27,7 @@ import QuizBlock from '@/components/ai-blocks/QuizBlock';
 import TimelineBlock from '@/components/ai-blocks/TimelineBlock';
 import MermaidBlock from '@/components/ai-blocks/MermaidBlock';
 import GraphBlock from '@/components/ai-blocks/GraphBlock';
+import { TextWithSpans } from '@/components/TextWithSpans';
 import {
   DndContext,
   closestCenter,
@@ -144,6 +145,54 @@ type AiSource = {
   label: string;
   content: string;
 };
+
+const MAX_SOURCE_LABEL_CHARS = 28;
+
+function getFileExtension(filename: string): string | null {
+  const lastDot = filename.lastIndexOf('.');
+  if (lastDot <= 0 || lastDot === filename.length - 1) return null;
+  return filename.slice(lastDot + 1).toLowerCase();
+}
+
+function truncateFileName(filename: string, maxChars: number): string {
+  if (filename.length <= maxChars) return filename;
+  const lastDot = filename.lastIndexOf('.');
+  if (lastDot > 0 && lastDot < filename.length - 1) {
+    const base = filename.slice(0, lastDot);
+    const ext = filename.slice(lastDot);
+    const baseMax = maxChars - ext.length - 3;
+    if (baseMax > 0) {
+      return `${base.slice(0, baseMax)}...${ext}`;
+    }
+    return filename;
+  }
+  return `${filename.slice(0, Math.max(1, maxChars - 3))}...`;
+}
+
+function getSourceIcon(source: AiSource): string {
+  if (source.type !== 'file') return '✍️';
+  const ext = getFileExtension(source.label || '');
+  switch (ext) {
+    case 'pdf':
+      return '📕';
+    case 'docx':
+      return '📃';
+    case 'md':
+      return '📝';
+    case 'txt':
+      return '📄';
+    default:
+      return '📎';
+  }
+}
+
+function getSourceDisplayLabel(source: AiSource, t: ReturnType<typeof useTranslations>): string {
+  if (source.type === 'text') {
+    return t('ai.sources.textLabel');
+  }
+  const raw = source.label || t('ai.sources.fileLabel');
+  return truncateFileName(raw, MAX_SOURCE_LABEL_CHARS);
+}
 
 function getDefaultContent(type: BlockType) {
   switch (type) {
@@ -277,6 +326,11 @@ function deriveTitleFromBlocks(blocks: BlockItem[]) {
   return '';
 }
 
+function getBlockColorToken(block: BlockItem): string | undefined {
+  const content = block.content || {};
+  return (content.color_token ?? content.colorToken) as string | undefined;
+}
+
 function SortableRow({
   block,
   children,
@@ -327,6 +381,7 @@ export default function PageView() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params?.slug as string;
   const locale = pathname.split('/')[1] || 'en';
   const { session, user, supabase, signOut } = useAuth();
@@ -337,6 +392,7 @@ export default function PageView() {
   const [blocks, setBlocks] = useState<BlockItem[]>([]);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBlocksLoading, setIsBlocksLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [originalTitle, setOriginalTitle] = useState('');
@@ -478,6 +534,10 @@ export default function PageView() {
       const found = allPages.find((p: PageItem) => p.slug === slug) || null;
       setPages(allPages);
       setPage(found);
+      if (found) {
+        setBlocks([]);
+        setIsBlocksLoading(true);
+      }
       const nextTitle = found?.title || '';
       setOriginalTitle(nextTitle);
       if (
@@ -562,9 +622,24 @@ export default function PageView() {
 
   useEffect(() => {
     if (!page) return;
-    loadBlocks(page.id);
+    setBlocks([]);
+    setIsBlocksLoading(true);
+    loadBlocks(page.id).finally(() => setIsBlocksLoading(false));
     loadAttachments(page.id);
   }, [page?.id, token]);
+
+  useEffect(() => {
+    if (!page?.id) return;
+    const run = async () => {
+      const authToken = await getAuthToken();
+      if (!authToken) return;
+      await fetch(`/api/pages/${page.id}/access`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      }).catch(() => {});
+    };
+    run();
+  }, [page?.id]);
 
   useEffect(() => {
     if (!page) return;
@@ -585,7 +660,8 @@ export default function PageView() {
   }, [aiOpen, page?.id, token]);
 
   useEffect(() => {
-    setAiOpen(false);
+    const openFromQuery = searchParams.get('ai') === '1';
+    setAiOpen(openFromQuery);
     setAiLanguage('en');
     setAiContentTypes({
       notes: true,
@@ -606,7 +682,7 @@ export default function PageView() {
     setAiSourceInput('');
     setAiManualError(null);
     setAiTempFileError(null);
-  }, [page?.id]);
+  }, [page?.id, searchParams]);
 
   useEffect(() => {
     if (!aiOpen) return;
@@ -1363,36 +1439,49 @@ export default function PageView() {
     if (!editMode) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+
     const oldIndex = blocks.findIndex((b) => b.logical_id === active.id);
     const newIndex = blocks.findIndex((b) => b.logical_id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(blocks, oldIndex, newIndex);
+
+    const previousBlocks = [...blocks];
+    const reordered = arrayMove(previousBlocks, oldIndex, newIndex);
     const updated = reordered.map((block, index) => ({
       ...block,
       position: getInsertPosition(reordered, index)
     }));
-    pushHistory([...blocks]);
+
+    pushHistory(previousBlocks);
     setBlocks(updated);
 
     if (!page) return;
     const authToken = await getAuthToken();
-    if (!authToken) return;
+    if (!authToken) {
+      setBlocks(previousBlocks);
+      return;
+    }
+
     const updates = updated.map((block) => ({
       logical_id: block.logical_id,
       position: block.position
     }));
+
     try {
       const response = await fetch('/api/blocks/reorder', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ page_id: page.id, updates })
       });
-      if (await handleUnauthorized(response)) return;
+      if (await handleUnauthorized(response)) {
+        setBlocks(previousBlocks);
+        return;
+      }
       if (!response.ok) {
         throw new Error(t('blocks.errors.reorder'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('blocks.errors.reorder'));
+      setBlocks(previousBlocks);
     }
   };
 
@@ -1414,17 +1503,28 @@ export default function PageView() {
               : level === 4
               ? 'text-lg sm:text-xl lg:text-2xl'
               : 'text-base sm:text-lg lg:text-xl';
-        return (
+          const textContent = block.content.text || t('blocks.placeholders.heading');
+          const hasSpans = Array.isArray(block.content.spans) && block.content.spans.length > 0;
+          const headingColorToken = getBlockColorToken(block);
+          const headingColorClass = headingColorToken ? `token-${headingColorToken}` : '';
+          const inner = (
             <div className="space-y-2">
-              <div className={`font-semibold text-foreground ${headingSize}`}>
-                {block.content.text || t('blocks.placeholders.heading')}
+              <div
+                className={`font-semibold ${headingColorToken ? headingColorClass : 'text-foreground'} ${headingSize}`}
+              >
+                {hasSpans ? (
+                  <TextWithSpans text={textContent} spans={block.content.spans} />
+                ) : (
+                  textContent
+                )}
               </div>
               {block.content.subtitle ? (
                 <div className="text-sm text-muted">{block.content.subtitle}</div>
               ) : null}
             </div>
-        );
-      }
+          );
+          return inner;
+        }
       case 'paragraph':
         {
           const size = block.content.size || 'md';
@@ -1445,11 +1545,22 @@ export default function PageView() {
               ? 'text-foreground'
               : 'text-foreground/90';
           const alignClass = align === 'center' ? 'text-center' : 'text-left';
-          return (
-            <p className={`leading-relaxed ${sizeClass} ${toneClass} ${alignClass}`}>
-              {block.content.text || t('blocks.placeholders.paragraph')}
+          const textContent = block.content.text || t('blocks.placeholders.paragraph');
+          const hasSpans = Array.isArray(block.content.spans) && block.content.spans.length > 0;
+          const paragraphColorToken = getBlockColorToken(block);
+          const paragraphColorClass = paragraphColorToken ? `token-${paragraphColorToken}` : '';
+          const paragraphInner = (
+            <p
+              className={`leading-relaxed ${sizeClass} ${paragraphColorToken ? paragraphColorClass : toneClass} ${alignClass}`}
+            >
+              {hasSpans ? (
+                <TextWithSpans text={textContent} spans={block.content.spans} />
+              ) : (
+                textContent
+              )}
             </p>
           );
+          return paragraphInner;
         }
       case 'quote':
         return (
@@ -1467,27 +1578,35 @@ export default function PageView() {
         );
       case 'callout':
         {
+          const colorToken = getBlockColorToken(block);
           const variant = block.content.variant || 'info';
-          const variantClass =
-            variant === 'warning'
-              ? 'border-amber-400/40 bg-amber-500/10'
-              : variant === 'tip'
-              ? 'border-emerald-400/40 bg-emerald-500/10'
-              : variant === 'example'
-              ? 'border-indigo-400/40 bg-indigo-500/10'
-              : variant === 'definition'
-              ? 'border-sky-400/40 bg-sky-500/10'
-              : variant === 'summary'
-              ? 'border-purple-400/40 bg-purple-500/10'
-              : 'border-[color:var(--border)] bg-[color:var(--surface-2)]';
+          const variantClass = colorToken
+            ? `callout-token-${colorToken}`
+            : variant === 'warning'
+            ? 'border-amber-400/40 bg-amber-500/10'
+            : variant === 'tip'
+            ? 'border-emerald-400/40 bg-emerald-500/10'
+            : variant === 'example'
+            ? 'border-indigo-400/40 bg-indigo-500/10'
+            : variant === 'definition'
+            ? 'border-sky-400/40 bg-sky-500/10'
+            : variant === 'summary'
+            ? 'border-purple-400/40 bg-purple-500/10'
+            : 'border-[color:var(--border)] bg-[color:var(--surface-2)]';
+          const textContent = block.content.text || t('blocks.placeholders.callout');
+          const hasSpans = Array.isArray(block.content.spans) && block.content.spans.length > 0;
           return (
-            <div className={`rounded-xl border p-3 text-sm text-foreground ${variantClass}`}>
+            <div className={`rounded-xl border p-3 text-sm ${colorToken ? '' : 'text-foreground'} ${variantClass}`}>
               {block.content.title ? (
                 <div className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
                   {block.content.title}
                 </div>
               ) : null}
-              {block.content.text || t('blocks.placeholders.callout')}
+              {hasSpans ? (
+                <TextWithSpans text={textContent} spans={block.content.spans} />
+              ) : (
+                textContent
+              )}
             </div>
           );
         }
@@ -3222,7 +3341,7 @@ export default function PageView() {
     addSource({
       id: `text-${Date.now()}`,
       type: 'text',
-      label: t('ai.sources.manualLabel'),
+      label: t('ai.sources.textLabel'),
       content: text
     });
     setAiSourceInput('');
@@ -3307,6 +3426,7 @@ export default function PageView() {
 
       await loadBlocks(page.id);
       setAiOpen(false);
+      window.dispatchEvent(new Event('dashboard:refresh'));
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -3412,7 +3532,7 @@ export default function PageView() {
                   </button>
                 </Dialog.Trigger>
                 <Dialog.Portal>
-                  <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" />
+                  <Dialog.Overlay className="fixed inset-0 z-[70] !m-0 bg-black/40 backdrop-blur-sm" />
                   <Dialog.Content className="fixed inset-x-4 bottom-4 z-[80] rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
                     <VisuallyHidden>
                       <Dialog.Title>Actions</Dialog.Title>
@@ -3537,13 +3657,19 @@ export default function PageView() {
         </div>
       )}
 
-      {blocks.length === 0 && !editMode && (
-        <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-8 text-muted">
-          {t('blocks.empty')}
+      {isBlocksLoading ? (
+        <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-8 flex items-center justify-center min-h-[120px]">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-foreground" />
         </div>
-      )}
+      ) : (
+        <>
+          {blocks.length === 0 && !editMode && (
+            <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-8 text-muted">
+              {t('blocks.empty')}
+            </div>
+          )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={blocks.map((b) => b.logical_id)} strategy={verticalListSortingStrategy}>
           <LayoutGroup>
             <div className="space-y-5">
@@ -3753,9 +3879,11 @@ export default function PageView() {
           </LayoutGroup>
         </SortableContext>
       </DndContext>
+        </>
+      )}
 
       {isExporting && (
-        <div className="fixed inset-0 z-[60] h-screen w-screen flex items-center justify-center bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] !m-0 h-screen w-screen flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="glass-surface-strong rounded-lg px-4 py-3 text-sm text-foreground shadow-lg">
             Exporting PDF...
           </div>
@@ -3763,7 +3891,7 @@ export default function PageView() {
       )}
 
       {aiGenerating && (
-        <div className="fixed inset-0 z-[70] h-screen w-screen flex items-center justify-center bg-slate-900/50 backdrop-blur-md">
+        <div className="fixed inset-0 z-[70] !m-0 h-screen w-screen flex items-center justify-center bg-slate-900/50 backdrop-blur-md">
           <motion.div
             className="rounded-full border border-cyan-400/40 bg-cyan-400/10 h-14 w-14"
             animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.6, 1, 0.6] }}
@@ -3786,7 +3914,7 @@ export default function PageView() {
 
       <Dialog.Root open={reorderSheetOpen} onOpenChange={setReorderSheetOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" />
+          <Dialog.Overlay className="fixed inset-0 z-[70] !m-0 bg-black/40 backdrop-blur-sm" />
           <Dialog.Content className="fixed inset-x-4 bottom-4 z-[80] rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.35)] lg:hidden">
             <VisuallyHidden>
               <Dialog.Title>Block actions</Dialog.Title>
@@ -3868,7 +3996,7 @@ export default function PageView() {
                             onClick={() => toggleAiContentType(option.id)}
                             className={`rounded-full px-3 py-1 text-xs transition ${
                               active
-                                ? 'border border-blue-400/50 bg-blue-500/10 text-blue-200 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
+                                ? 'ai-type-active border border-blue-400/50 bg-blue-500/10 text-blue-200 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
                                 : 'border border-[color:var(--border)] bg-[color:var(--surface-2)] text-muted hover:border-blue-400/30'
                             }`}
                           >
@@ -4028,8 +4156,8 @@ export default function PageView() {
                           className="flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-2)] px-3 py-2 text-xs text-foreground"
                         >
                           <div className="flex items-center gap-2">
-                            <span>{source.type === 'file' ? '📎' : '✍️'}</span>
-                            <span className="truncate">{source.label}</span>
+                            <span>{getSourceIcon(source)}</span>
+                            <span>{getSourceDisplayLabel(source, t)}</span>
                           </div>
                           <button
                             type="button"

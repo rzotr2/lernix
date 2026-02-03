@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "NextTemp"
+    "name": "Lernix"
   },
   "header": {
     "dashboard": "Dashboard",
@@ -12,7 +12,11 @@
     "subtitle": "Your workspace will appear here."
   },
   "sidebar": {
-    "placeholder": "Navigation will appear here."
+    "placeholder": "Navigation will appear here.",
+    "smartSearch": "Smart Search",
+    "smartSearchPlaceholder": "Search pages and content...",
+    "searching": "Searching...",
+    "clearSearch": "Clear search"
   },
   "pages": {
     "newPage": "New page",
@@ -228,6 +232,9 @@
     "languageLabel": "Generation language",
     "typesLabel": "Content types",
     "usePageContext": "Use page context",
+    "modeLabel": "Mode",
+    "modeEducational": "Educational",
+    "modeStandard": "Standard",
     "loading": "Generating content...",
     "preferencesLabel": "Optional preferences",
     "preferencesPlaceholder": "Example: keep it concise and use bullet points.",
@@ -257,6 +264,7 @@
       "emptyText": "Enter some text before adding.",
       "emptyParsed": "No parsed text found for this file.",
       "manualLabel": "Add text as source",
+      "textLabel": "Text",
       "manualPlaceholder": "Paste or type text to use as a source.",
       "addText": "Add as source",
       "attachFile": "Attach file",
@@ -309,22 +317,27 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard overview",
-    "subtitle": "Read-only summary for your workspace"
-  },
-  "metrics": {
-    "totalUsers": "Total users",
-    "revenue": "Revenue",
-    "activeSessions": "Active sessions",
-    "growthRate": "Growth rate"
-  },
-  "activity": {
-    "title": "Recent activity",
-    "empty": "No recent activity",
-    "items": {
-      "signup": "New user signup",
-      "payment": "Payment processed",
-      "settings": "Settings updated"
+    "defaultName": "User",
+    "title": "Welcome back, {name}",
+    "newGeneration": "New Generation",
+    "dailyTip": "Daily Tip: Stay consistent with your studies to build a strong knowledge base.",
+    "totalPages": "Total Pages",
+    "totalAiCalls": "Total AI Calls",
+    "pagesWithAi": "Pages With AI",
+    "aiUsagePercent": "AI Usage %",
+    "recentProjects": "Recent Projects",
+    "recentEmpty": "No recent pages yet.",
+    "contentGenerated": "Pages Created",
+    "aiActivity": "AI Activity",
+    "subscriptionStatus": "Subscription Status",
+    "trialStatus": "Trial",
+    "trialActive": "Active",
+    "trialExpired": "Expired",
+    "trialEnds": "Trial ends",
+    "subscription": "Subscription",
+    "subscriptionNone": "None",
+    "error": {
+      "loading": "Failed to load dashboard data."
     }
   }
 }

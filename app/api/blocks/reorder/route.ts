@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase-admin';
+import { touchRecentPage, updateLastActivity } from '@/utils/dashboard-stats';
 
 type ReorderPayload = {
   page_id?: string;
@@ -100,6 +101,9 @@ export async function PATCH(request: NextRequest) {
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
+
+  await touchRecentPage({ userId: user.id, pageId, accessedAt: now });
+  await updateLastActivity({ userId: user.id, lastActivityAt: now });
 
   return NextResponse.json({ updated: inserted });
 }

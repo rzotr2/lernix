@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import {
-  Command,
+  Search,
   ChevronRight,
   File,
   CornerDownRight,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLayout } from '@/contexts/LayoutContext';
+import { createPage } from '@/services/pagesService';
 import { locales, defaultLocale } from '@/i18n/config';
 import LanguagePicker from '@/components/LanguagePicker';
 
@@ -76,10 +77,18 @@ export default function AppSidebar() {
   const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [spotlightPos, setSpotlightPos] = useState({ x: 0, y: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [filteredPages, setFilteredPages] = useState<PageItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchCacheRef = useRef<Map<string, string>>(new Map());
+  const searchInFlightRef = useRef<Map<string, Promise<string>>>(new Map());
+  const searchVersionRef = useRef(0);
 
   const locale = pathname.split('/')[1] || 'en';
 
-  const tree = useMemo(() => buildTree(pages), [pages]);
+  const displayedPages = searchQuery.trim() ? filteredPages : pages;
+  const tree = useMemo(() => buildTree(displayedPages), [displayedPages]);
   const activeSlug = useMemo(() => {
     const match = pathname.match(/\/pages\/([^/]+)/);
     return match?.[1] ?? null;
@@ -106,6 +115,7 @@ export default function AppSidebar() {
       }
       const data = await response.json();
       setPages(data.pages || []);
+      setFilteredPages(data.pages || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load pages');
     } finally {
@@ -160,17 +170,10 @@ export default function AppSidebar() {
       if (!token) {
         throw new Error('Unauthorized');
       }
-
-      const response = await fetch('/api/pages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: t('pages.newPageTitle') })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to create page');
-      }
-      const data = await response.json();
-      const created = data.page as PageItem;
+      const created = (await createPage({
+        token,
+        title: t('pages.newPageTitle')
+      })) as PageItem;
       setPages((prev) => [...prev, created]);
       window.dispatchEvent(new Event('pages:refresh'));
       router.push(`/${locale}/pages/${created.slug}`);
@@ -178,6 +181,123 @@ export default function AppSidebar() {
       setError(err instanceof Error ? err.message : 'Failed to create page');
     }
   };
+
+  const extractBlockText = (block: any): string => {
+    const content = block?.content || {};
+    switch (block?.type) {
+      case 'heading':
+      case 'paragraph':
+      case 'quote':
+      case 'callout':
+      case 'summary':
+        return String(content.text || '');
+      case 'code':
+        return String(content.code || '');
+      case 'list':
+      case 'takeaways':
+        return Array.isArray(content.items) ? content.items.join(' ') : '';
+      case 'checklist':
+        return Array.isArray(content.items)
+          ? content.items.map((item: any) => item?.text || '').join(' ')
+          : '';
+      case 'definitions':
+        return Array.isArray(content.items)
+          ? content.items.map((item: any) => `${item?.term || ''} ${item?.definition || ''}`).join(' ')
+          : '';
+      case 'faq':
+        return Array.isArray(content.items)
+          ? content.items.map((item: any) => `${item?.question || ''} ${item?.answer || ''}`).join(' ')
+          : '';
+      case 'steps':
+        return Array.isArray(content.steps)
+          ? content.steps.map((item: any) => `${item?.title || ''} ${item?.description || ''}`).join(' ')
+          : '';
+      case 'timeline':
+        return Array.isArray(content.items)
+          ? content.items.map((item: any) => `${item?.title || ''} ${item?.description || ''}`).join(' ')
+          : '';
+      case 'table':
+        return Array.isArray(content.rows) ? content.rows.flat().join(' ') : '';
+      case 'mermaid':
+        return String(content.code || '');
+      case 'graph':
+        return Array.isArray(content.nodes)
+          ? content.nodes.map((node: any) => node?.label || node?.id || '').join(' ')
+          : '';
+      case 'image':
+        return `${content.alt || ''} ${content.caption || ''}`.trim();
+      default:
+        return '';
+    }
+  };
+
+  const getPageSearchText = async (pageId: string, token: string) => {
+    const cached = searchCacheRef.current.get(pageId);
+    if (cached !== undefined) return cached;
+    const inFlight = searchInFlightRef.current.get(pageId);
+    if (inFlight) return inFlight;
+    const promise = fetch(`/api/blocks?pageId=${pageId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load page blocks');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const blocks = Array.isArray(data.blocks) ? data.blocks : [];
+        const text = blocks.map(extractBlockText).filter(Boolean).join(' ').toLowerCase();
+        searchCacheRef.current.set(pageId, text);
+        return text;
+      })
+      .catch(() => {
+        const fallback = '';
+        searchCacheRef.current.set(pageId, fallback);
+        return fallback;
+      })
+      .finally(() => {
+        searchInFlightRef.current.delete(pageId);
+      });
+    searchInFlightRef.current.set(pageId, promise);
+    return promise;
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const query = debouncedQuery.trim().toLowerCase();
+    if (!query) {
+      setFilteredPages(pages);
+      setIsSearching(false);
+      return;
+    }
+    const token = session?.access_token;
+    if (!token) {
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    const currentVersion = ++searchVersionRef.current;
+    (async () => {
+      const results = await Promise.all(
+        pages.map(async (page) => {
+          const titleMatch = (page.title || '').toLowerCase().includes(query);
+          if (titleMatch) return { page, match: true };
+          const contentText = await getPageSearchText(page.id, token);
+          return { page, match: contentText.includes(query) };
+        })
+      );
+      if (searchVersionRef.current !== currentVersion) return;
+      setFilteredPages(results.filter((result) => result.match).map((result) => result.page));
+      setIsSearching(false);
+    })();
+  }, [debouncedQuery, pages, session?.access_token]);
 
   const renderNode = (node: PageNode, depth = 0) => {
     const hasChildren = node.children.length > 0;
@@ -191,7 +311,7 @@ export default function AppSidebar() {
     const isInActivePath = activePathIds.has(node.id);
 
     return (
-      <motion.div key={node.id} layout className="space-y-1">
+      <motion.div key={node.id} layout="position" className="space-y-1">
         <Collapsible.Root
           open={isOpen}
           onOpenChange={(open) => setOpenNodes((prev) => ({ ...prev, [node.id]: open }))}
@@ -228,31 +348,33 @@ export default function AppSidebar() {
                   style={{ top: '50%', transform: 'translateY(-50%)' }}
                 />
               )}
-              <Tooltip.Root delayDuration={150}>
-                <Tooltip.Trigger asChild>
-                  <Link
-                    href={`/${locale}/pages/${node.slug}`}
-                    onClick={closeSidebar}
-                    className="flex w-full items-center gap-2 min-w-0"
-                  >
-                    <Icon
-                      strokeWidth={1.5}
-                      className={iconClass}
-                      {...(isActive ? { fill: 'currentColor' } : {})}
-                    />
-                    <span className="flex-1 truncate">{node.title}</span>
-                  </Link>
-                </Tooltip.Trigger>
-                <Tooltip.Portal>
-                  <Tooltip.Content
-                    side="right"
-                    sideOffset={10}
-                    className="z-50 rounded-xl border border-white/10 bg-[color:var(--surface-2)] px-3 py-2 text-xs text-foreground shadow-[0_20px_60px_rgba(2,6,23,0.35)] backdrop-blur-xl"
-                  >
-                    {node.title}
-                  </Tooltip.Content>
-                </Tooltip.Portal>
-              </Tooltip.Root>
+              <Tooltip.Provider>
+                <Tooltip.Root delayDuration={150}>
+                  <Tooltip.Trigger asChild>
+                    <Link
+                      href={`/${locale}/pages/${node.slug}`}
+                      onClick={closeSidebar}
+                      className="flex w-full items-center gap-2 min-w-0"
+                    >
+                      <Icon
+                        strokeWidth={1.5}
+                        className={iconClass}
+                        {...(isActive ? { fill: 'currentColor' } : {})}
+                      />
+                      <span className="flex-1 truncate">{node.title}</span>
+                    </Link>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      side="right"
+                      sideOffset={10}
+                      className="z-50 rounded-xl border border-white/10 bg-[color:var(--surface-2)] px-3 py-2 text-xs text-foreground shadow-[0_20px_60px_rgba(2,6,23,0.35)] backdrop-blur-xl"
+                    >
+                      {node.title}
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
               {hasChildren && (
                 <Collapsible.Trigger
                   type="button"
@@ -295,44 +417,43 @@ export default function AppSidebar() {
       }`}
     >
       <div className="flex h-full flex-col">
-        <div className="flex-1 space-y-6 px-5 py-6">
+        <div className="flex-1 flex flex-col min-h-0 space-y-6 px-5 py-6">
           <div className="space-y-3">
             <motion.button
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleCreate}
-              className="group relative w-full rounded-full bg-gradient-to-r from-violet-500/40 via-indigo-500/40 to-sky-400/40 p-[1px] shadow-[0_0_20px_rgba(56,189,248,0.2)]"
-            >
-              <span className="flex items-center justify-between rounded-full bg-[color:var(--surface-3)] px-4 py-2 text-sm font-medium text-foreground transition-colors group-hover:bg-[color:var(--surface-2)]">
-                <span className="flex items-center gap-2">
-                  <Sparkles
-                    strokeWidth={1.5}
-                    className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.8)]"
-                  />
-                  {t('pages.newPage')}
-                </span>
-                <span className="text-xs text-muted">Action Hub</span>
-              </span>
-              <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-violet-400/10 via-cyan-400/10 to-blue-400/10 opacity-0 blur-2xl transition-opacity group-hover:opacity-100" />
-            </motion.button>
-
-            <motion.button
-              type="button"
-              whileHover={{ y: -1 }}
-              className="btn-ghost flex w-full items-center justify-between rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-muted transition-colors"
+              className="btn-ghost flex w-full items-center justify-between rounded-full border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-blue-400/40"
             >
               <span className="flex items-center gap-2">
-                <Command strokeWidth={1.5} className="h-3.5 w-3.5 text-cyan-400" />
-                Quick Search
-              </span>
-              <span className="flex items-center gap-1 rounded-full border border-[color:var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted">
-                CMD K
+                <Sparkles strokeWidth={1.5} className="h-4 w-4 text-cyan-400" />
+                {t('pages.newPage')}
               </span>
             </motion.button>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t('sidebar.smartSearchPlaceholder')}
+                className="input-field w-full rounded-full pl-9 pr-8 py-2 text-xs"
+              />
+              {searchQuery.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-foreground"
+                  aria-label={t('sidebar.clearSearch')}
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex flex-col min-h-0">
             <div className="text-[11px] uppercase tracking-[0.3em] text-muted">
               Navigation
             </div>
@@ -340,15 +461,18 @@ export default function AppSidebar() {
             {isLoading && (
               <div className="text-xs text-muted">{t('pages.loading')}</div>
             )}
+            {isSearching && searchQuery.trim() && (
+              <div className="text-xs text-muted">{t('sidebar.searching')}</div>
+            )}
             {error && <div className="text-xs text-rose-500">{error}</div>}
 
-            {!isLoading && !error && pages.length === 0 && (
+            {!isLoading && !error && displayedPages.length === 0 && (
               <div className="text-sm text-muted">{t('pages.empty')}</div>
             )}
 
             <Tooltip.Provider>
               <div
-                className="group relative max-h-[60vh] overflow-y-auto overflow-x-hidden nav-scroll"
+                className="group relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden nav-scroll"
                 onMouseMove={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
                   setSpotlightPos({

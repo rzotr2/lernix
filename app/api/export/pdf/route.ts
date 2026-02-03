@@ -106,6 +106,65 @@ function escapeAttr(value: string) {
   return escapeHtml(value);
 }
 
+const PDF_COLOR_TOKENS: Record<string, { color: string }> = {
+  'neutral-glass': { color: '#475569' },
+  'accent-soft': { color: '#0e7490' },
+  'accent-focus': { color: '#0369a1' },
+  'accent-muted': { color: '#64748b' },
+  'warning-soft': { color: '#b45309' },
+  'success-soft': { color: '#15803d' }
+};
+
+const PDF_CALLOUT_TOKENS: Record<string, { border: string; background: string }> = {
+  'neutral-glass': { border: '1px solid #e2e8f0', background: 'rgba(15,23,42,0.04)' },
+  'accent-soft': { border: '1px solid rgba(56,189,248,0.35)', background: 'rgba(56,189,248,0.12)' },
+  'accent-focus': { border: '1px solid rgba(56,189,248,0.5)', background: 'rgba(56,189,248,0.18)' },
+  'accent-muted': { border: '1px solid #cbd5e1', background: 'rgba(100,116,139,0.1)' },
+  'warning-soft': { border: '1px solid rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.1)' },
+  'success-soft': { border: '1px solid rgba(34,197,94,0.4)', background: 'rgba(34,197,94,0.1)' }
+};
+
+function renderTextWithSpans(text: string, spans?: Array<{ start: number; end: number; emphasis?: string; color_token?: string }>): string {
+  if (!text) return '';
+  if (!Array.isArray(spans) || spans.length === 0) {
+    return escapeHtml(text);
+  }
+  const len = text.length;
+  const sorted = spans
+    .filter((s) => s.start < s.end && s.start >= 0 && s.end <= len)
+    .sort((a, b) => a.start - b.start);
+
+  let lastEnd = 0;
+  const parts: string[] = [];
+
+  for (const span of sorted) {
+    const start = Math.max(span.start, lastEnd);
+    const end = Math.min(span.end, len);
+    if (start >= end) continue;
+
+    if (start > lastEnd) {
+      parts.push(escapeHtml(text.slice(lastEnd, start)));
+    }
+
+    const segment = text.slice(start, end);
+    const styles: string[] = [];
+    if (span.emphasis === 'strong') styles.push('font-weight:600');
+    if (span.emphasis === 'soft') styles.push('font-style:italic;color:#64748b');
+    if (span.color_token && PDF_COLOR_TOKENS[span.color_token]) {
+      styles.push(`color:${PDF_COLOR_TOKENS[span.color_token].color}`);
+    }
+    const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
+    parts.push(`<span${styleAttr}>${escapeHtml(segment)}</span>`);
+    lastEnd = end;
+  }
+
+  if (lastEnd < len) {
+    parts.push(escapeHtml(text.slice(lastEnd)));
+  }
+
+  return parts.join('');
+}
+
 function renderGraphSvg(nodes: any[] = [], edges: any[] = []) {
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeEdges = Array.isArray(edges) ? edges : [];
@@ -275,13 +334,20 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
     case 'heading': {
       const level = Math.min(Math.max(Number(content.level) || 1, 1), 3);
       const tag = `h${level}`;
+      const text = String(content.text || '');
+      const hasSpans = Array.isArray(content.spans) && content.spans.length > 0;
+      const inner = hasSpans ? renderTextWithSpans(text, content.spans) : escapeHtml(text);
       const subtitle = content.subtitle
         ? `<div class="subtitle">${escapeHtml(String(content.subtitle))}</div>`
         : '';
-      return `<${tag}>${escapeHtml(String(content.text || ''))}</${tag}>${subtitle}`;
+      return `<${tag}>${inner}</${tag}>${subtitle}`;
     }
-    case 'paragraph':
-      return `<p>${escapeHtml(String(content.text || ''))}</p>`;
+    case 'paragraph': {
+      const text = String(content.text || '');
+      const hasSpans = Array.isArray(content.spans) && content.spans.length > 0;
+      const inner = hasSpans ? renderTextWithSpans(text, content.spans) : escapeHtml(text);
+      return `<p>${inner}</p>`;
+    }
     case 'quote': {
       const text = escapeHtml(String(content.text || ''));
       const author = content.author ? escapeHtml(String(content.author)) : '';
@@ -289,8 +355,16 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
       const meta = author || source ? `<div class="muted">${[author, source].filter(Boolean).join(' • ')}</div>` : '';
       return `<blockquote class="quote">${text}${meta}</blockquote>`;
     }
-    case 'callout':
-      return `<div class="callout">${escapeHtml(String(content.text || ''))}</div>`;
+    case 'callout': {
+      const calloutText = String(content.text || '');
+      const hasSpans = Array.isArray(content.spans) && content.spans.length > 0;
+      const inner = hasSpans ? renderTextWithSpans(calloutText, content.spans) : escapeHtml(calloutText);
+      const colorToken = content.color_token && PDF_CALLOUT_TOKENS[content.color_token];
+      const calloutStyle = colorToken
+        ? ` style="border:${colorToken.border};background:${colorToken.background};border-radius:8px;padding:12px;"`
+        : ' class="callout"';
+      return `<div${calloutStyle}>${inner}</div>`;
+    }
     case 'list': {
       const items = Array.isArray(content.items) ? content.items : [];
       const tag = content.ordered ? 'ol' : 'ul';

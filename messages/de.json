@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "NextTemp"
+    "name": "Lernix"
   },
   "header": {
     "dashboard": "Dashboard",
@@ -12,7 +12,11 @@
     "subtitle": "Dein Workspace erscheint hier."
   },
   "sidebar": {
-    "placeholder": "Die Navigation erscheint hier."
+    "placeholder": "Die Navigation erscheint hier.",
+    "smartSearch": "Smart Search",
+    "smartSearchPlaceholder": "Seiten und Inhalte durchsuchen...",
+    "searching": "Suche...",
+    "clearSearch": "Suche löschen"
   },
   "pages": {
     "newPage": "Neue Seite",
@@ -228,6 +232,9 @@
     "languageLabel": "Generierungssprache",
     "typesLabel": "Inhaltstypen",
     "usePageContext": "Seitenkontext verwenden",
+    "modeLabel": "Modus",
+    "modeEducational": "Bildung",
+    "modeStandard": "Standard",
     "loading": "Inhalt wird generiert...",
     "preferencesLabel": "Optionale Vorgaben",
     "preferencesPlaceholder": "Beispiel: kurz halten und Stichpunkte nutzen.",
@@ -257,6 +264,7 @@
       "emptyText": "Bitte zuerst Text eingeben.",
       "emptyParsed": "Für diese Datei wurde kein Text erkannt.",
       "manualLabel": "Text als Quelle hinzufügen",
+      "textLabel": "Text",
       "manualPlaceholder": "Text einfügen oder eingeben.",
       "addText": "Als Quelle hinzufügen",
       "attachFile": "Datei anhängen",
@@ -309,22 +317,27 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard-Übersicht",
-    "subtitle": "Nur lesende Zusammenfassung für deinen Workspace"
-  },
-  "metrics": {
-    "totalUsers": "Benutzer gesamt",
-    "revenue": "Umsatz",
-    "activeSessions": "Aktive Sitzungen",
-    "growthRate": "Wachstumsrate"
-  },
-  "activity": {
-    "title": "Letzte Aktivitäten",
-    "empty": "Keine aktuellen Aktivitäten",
-    "items": {
-      "signup": "Neue Benutzerregistrierung",
-      "payment": "Zahlung verarbeitet",
-      "settings": "Einstellungen aktualisiert"
+    "defaultName": "Benutzer",
+    "title": "Willkommen zurück, {name}",
+    "newGeneration": "Neue Generation",
+    "dailyTip": "Täglicher Tipp: Bleiben Sie konsequent bei Ihren Studien, um eine starke Wissensbasis aufzubauen.",
+    "totalPages": "Gesamtseiten",
+    "totalAiCalls": "Gesamte KI-Aufrufe",
+    "pagesWithAi": "Seiten mit KI",
+    "aiUsagePercent": "KI-Nutzung %",
+    "recentProjects": "Letzte Projekte",
+    "recentEmpty": "Noch keine zuletzt geöffneten Seiten.",
+    "contentGenerated": "Erstellte Seiten",
+    "aiActivity": "KI-Aktivität",
+    "subscriptionStatus": "Abo-Status",
+    "trialStatus": "Testphase",
+    "trialActive": "Aktiv",
+    "trialExpired": "Abgelaufen",
+    "trialEnds": "Test endet",
+    "subscription": "Abo",
+    "subscriptionNone": "Keine",
+    "error": {
+      "loading": "Dashboard-Daten konnten nicht geladen werden."
     }
   }
 }

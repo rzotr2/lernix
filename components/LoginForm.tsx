@@ -33,7 +33,7 @@ export function LoginForm({
         <div className="flex items-center justify-center gap-2 mb-6">
           <span className="text-3xl">🎬</span>
           <h2 className="text-2xl font-medium text-foreground">
-            NextTemp
+            Lernix
           </h2>
         </div>
       </div>

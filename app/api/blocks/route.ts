@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase-admin';
+import { touchRecentPage, updateLastActivity } from '@/utils/dashboard-stats';
 
 type CreateBlockPayload = {
   page_id?: string;
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await touchRecentPage({ userId: user.id, pageId, accessedAt: now });
+  await updateLastActivity({ userId: user.id, lastActivityAt: now });
+  console.log('[dashboard] block create', { userId: user.id, pageId, blockId: data.id });
 
   return NextResponse.json({ block: data }, { status: 201 });
 }

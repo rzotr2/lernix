@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "NextTemp"
+    "name": "Lernix"
   },
   "header": {
     "dashboard": "Дашборд",
@@ -12,7 +12,11 @@
     "subtitle": "Ваш робочий простір буде тут."
   },
   "sidebar": {
-    "placeholder": "Навігація буде тут."
+    "placeholder": "Навігація буде тут.",
+    "smartSearch": "Розумний пошук",
+    "smartSearchPlaceholder": "Пошук сторінок та вмісту...",
+    "searching": "Пошук...",
+    "clearSearch": "Очистити пошук"
   },
   "pages": {
     "newPage": "Нова сторінка",
@@ -228,6 +232,9 @@
     "languageLabel": "Мова генерації",
     "typesLabel": "Типи контенту",
     "usePageContext": "Використати контекст сторінки",
+    "modeLabel": "Режим",
+    "modeEducational": "Навчальний",
+    "modeStandard": "Стандартний",
     "loading": "Генеруємо контент...",
     "preferencesLabel": "Додаткові побажання",
     "preferencesPlaceholder": "Наприклад: коротко і у вигляді списку.",
@@ -257,6 +264,7 @@
       "emptyText": "Спочатку введіть текст.",
       "emptyParsed": "У цьому файлі немає розпізнаного тексту.",
       "manualLabel": "Додати текст як джерело",
+      "textLabel": "Текст",
       "manualPlaceholder": "Вставте або введіть текст.",
       "addText": "Додати як джерело",
       "attachFile": "Додати файл",
@@ -309,22 +317,27 @@
     }
   },
   "dashboard": {
-    "title": "Огляд дашборду",
-    "subtitle": "Лише інформаційне резюме для вашого простору"
-  },
-  "metrics": {
-    "totalUsers": "Користувачів усього",
-    "revenue": "Дохід",
-    "activeSessions": "Активні сесії",
-    "growthRate": "Темп зростання"
-  },
-  "activity": {
-    "title": "Остання активність",
-    "empty": "Немає нещодавньої активності",
-    "items": {
-      "signup": "Нова реєстрація користувача",
-      "payment": "Оплату оброблено",
-      "settings": "Налаштування оновлено"
+    "defaultName": "Користувач",
+    "title": "З поверненням, {name}",
+    "newGeneration": "Нова генерація",
+    "dailyTip": "Щоденна порада: будьте послідовними у навчанні, щоб створити міцну базу знань.",
+    "totalPages": "Усього сторінок",
+    "totalAiCalls": "Усього викликів AI",
+    "pagesWithAi": "Сторінок з AI",
+    "aiUsagePercent": "AI використання %",
+    "recentProjects": "Останні проекти",
+    "recentEmpty": "Ще немає нещодавніх сторінок.",
+    "contentGenerated": "Створені сторінки",
+    "aiActivity": "Активність AI",
+    "subscriptionStatus": "Статус підписки",
+    "trialStatus": "Пробний період",
+    "trialActive": "Активний",
+    "trialExpired": "Закінчився",
+    "trialEnds": "Пробний період закінчується",
+    "subscription": "Підписка",
+    "subscriptionNone": "Немає",
+    "error": {
+      "loading": "Не вдалося завантажити дані дашборду."
     }
   }
 }

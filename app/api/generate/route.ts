@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase-admin';
+import {
+  incrementDailyActivity,
+  incrementUserStats,
+  markPageAiUsage,
+  touchRecentPage
+} from '@/utils/dashboard-stats';
 
 export const runtime = 'nodejs';
 
 type GeneratePayload = {
   page_id?: string;
   language_code?: string;
+  mode?: 'educational' | 'standard';
   selected_content_types?: string[];
   use_page_context?: boolean;
   sources?: Array<{ type: 'file' | 'text'; content: string }>;
@@ -38,6 +45,26 @@ const allowedTypes = new Set([
   'takeaways',
   'mermaid',
   'graph'
+]);
+
+const educationalAllowedTypes = new Set([
+  'heading',
+  'paragraph',
+  'callout',
+  'bullet_list',
+  'numbered_list',
+  'code',
+  'divider',
+  'table'
+]);
+
+const COLOR_TOKENS = new Set([
+  'neutral-glass',
+  'accent-soft',
+  'accent-focus',
+  'accent-muted',
+  'warning-soft',
+  'success-soft'
 ]);
 
 const typeAliases: Record<string, string> = {
@@ -190,27 +217,275 @@ function buildPrompt({
   return { systemPrompt, userPrompt };
 }
 
+const EDUCATIONAL_BLOCK_TYPES =
+  'heading, paragraph, callout, bullet_list, numbered_list, code, divider, table';
+
+function buildEducationalPrompt({
+  pageTitle,
+  manualContent,
+  attachmentContent,
+  language,
+  sourcesContent
+}: {
+  pageTitle: string;
+  manualContent: string;
+  attachmentContent: string;
+  language: string;
+  sourcesContent: string;
+}) {
+  const systemPrompt = [
+    'You are an AI content generator for a modern, Notion-like block editor with a 2026 glassy, minimal design system. You are generating a COMPLETE, READY-TO-READ LEARNING PAGE. You are NOT allowed to be conservative by default. Your job is to balance semantic correctness WITH visual diversity. If both are plausible, you MUST favor diversity.',
+    'Output ONLY semantic JSON: { "blocks": [ { "type": "...", "content": { ... }, "style"?: {} } ] }. No HTML, no Markdown. Append blocks to the end of the page. Blocks are immutable (append-only). Do not reference other pages or documents.',
+    `Use ONLY these block types: ${EDUCATIONAL_BLOCK_TYPES}.`,
+    'Block schemas: heading: { text: string, level?: 1|2|3, subtitle?: string|null, spans?: Span[] }. paragraph: { text: string, spans?: Span[] }. callout: { text: string, title?: string|null, color_token?: ColorToken, spans?: Span[] }. bullet_list: { items: string[] }. numbered_list: { items: string[] }. code: { code: string, language?: string }. divider: { label?: string|null, style?: "line"|"space"|"dotted" }. table: { columns?: string[], rows: string[][], caption?: string|null }. Inline span: { start: number, end: number, text: string, emphasis?: "soft"|"strong", color_token?: ColorToken }.',
+    'STRUCTURAL DIVERSITY — HARD REQUIREMENTS. Paragraphs are NOT the default. Use paragraph ONLY if the content cannot reasonably be a list, a callout, or a table. If there are 2 or more parallel ideas use a list. If there are steps, order, progression use numbered_list. Lists are preferred over paragraphs when possible. If content compares 2+ properties across 2+ items table is REQUIRED; do NOT explain comparisons in paragraphs. Every section (content under a heading) MUST contain at least one callout. Insert a divider after every major section OR after 5–7 blocks, whichever comes first. Page-level quota: at least 1 table OR code block; at least 2 callouts with different semantic roles; at least 1 list per section. If not satisfied, restructure content until it is.',
+    'COLOR SYSTEM — HARD. Color is NOT optional. Allowed tokens: neutral-glass, accent-soft, accent-focus, accent-muted, warning-soft, success-soft. At least 30% of blocks on the page MUST have a non-neutral color token. Every section MUST contain at least one block with a non-neutral color token. Callouts MUST use a color token matching their semantic role: definition/core idea → accent-focus; explanation/example → accent-soft; warning/limitation → warning-soft; best practice/takeaway → success-soft. Callouts without color are INVALID. Every section MUST include at least one inline emphasized span with a color token. Inline emphasis is REQUIRED. Max 2 color tokens per block. Max 3 colored blocks in a row. No traffic light patterns. If you hit a conflict you may use neutral-glass temporarily but MUST compensate later in the same section to meet quotas.',
+    'INLINE EMPHASIS POLICY — HARD. Inline color is semantic, not decorative. Use inline color ONLY for defined key terms, explicitly named concepts, or clearly bounded noun phrases. Do NOT use it for adjectives alone, function words, or stylistic emphasis. Each emphasized concept must be a single span. Do NOT split phrases or emit multiple adjacent spans for one phrase. spans[].text MUST exactly match the full phrase as it appears in the text. If unsure, DO NOT emit a span. Prefer under-highlighting over over-highlighting.',
+    'IMPORTANCE. Every section MUST have exactly ONE core idea (accent-focus) and at least ONE supporting highlight (accent-soft or accent-muted). If importance is ambiguous choose a plausible importance; do NOT skip emphasis due to uncertainty. Semantic precision is important but under-emphasis is a failure.',
+    'Tone: clear, didactic, calm, modern. No fluff. Optimized for learning and scanning.',
+    'FAILURE. Your output is INVALID if: large stretches of paragraphs appear without lists or callouts; an entire section has only neutral blocks; callouts exist but share the same color role; color is used only once or twice just to comply; visual rhythm feels uniform.',
+    'Return a JSON array of blocks. Each block MUST include type, content, and style metadata including color tokens when applicable.',
+    `Use language: ${language}.`
+  ].join(' ');
+
+  const userPrompt = [
+    `Page title: ${pageTitle || 'Untitled'}.`,
+    sourcesContent ? `Sources: ${sourcesContent}` : 'Sources: none.',
+    manualContent ? `Existing page content (for context): ${manualContent}` : 'Page content: empty.',
+    attachmentContent ? `Attachment text: ${attachmentContent}` : 'Attachment text: none.'
+  ].join('\n');
+
+  return { systemPrompt, userPrompt };
+}
+
 function parseJsonResponse(text: string) {
   const trimmed = text.trim();
   return JSON.parse(trimmed);
 }
 
-function validateBlocksPayload(payload: any) {
+function validateBlocksPayload(payload: any, isEducational = false) {
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.blocks)) {
     throw new Error('Invalid AI response');
   }
 
+  const typeSet = isEducational ? educationalAllowedTypes : allowedTypes;
   payload.blocks.forEach((block: any) => {
     if (!block || typeof block !== 'object') {
       throw new Error('Invalid block');
     }
     block.type = normalizeBlockType(block.type);
-    if (!allowedTypes.has(block.type)) {
+    if (!typeSet.has(block.type)) {
       throw new Error('Unsupported block type');
     }
     if (!block.content || typeof block.content !== 'object') {
       throw new Error('Invalid block content');
     }
+  });
+}
+
+function normalizeColorContract(block: any) {
+  const next = { ...block };
+  const content = { ...(block.content || {}) };
+  const style = block.style || {};
+  if (content.color_token == null && content.colorToken != null) {
+    content.color_token = content.colorToken;
+  }
+  if (content.color_token == null && style.color_token != null) {
+    content.color_token = style.color_token;
+  }
+  if (content.color_token == null && style.colorToken != null) {
+    content.color_token = style.colorToken;
+  }
+  if ('colorToken' in content) {
+    delete content.colorToken;
+  }
+  next.content = content;
+  if ('style' in next) {
+    delete next.style;
+  }
+  return next;
+}
+
+function validateSpan(span: any, textLength: number) {
+  if (!span || typeof span !== 'object') return false;
+  const start = Number(span.start);
+  const end = Number(span.end);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end > textLength || start >= end) {
+    return false;
+  }
+  if (span.emphasis !== undefined && !['soft', 'strong'].includes(span.emphasis)) return false;
+  if (span.color_token !== undefined && !COLOR_TOKENS.has(span.color_token)) return false;
+  return true;
+}
+
+function isWordChar(c: string): boolean {
+  return /\w/.test(c) || /[\u0400-\u04FF]/.test(c);
+}
+
+function isBoundary(text: string, index: number): boolean {
+  if (index <= 0 || index >= text.length) return true;
+  return !isWordChar(text[index - 1]) || !isWordChar(text[index]);
+}
+
+function normalizeSpanText(text: string) {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function canMergeGap(gap: string): boolean {
+  if (!gap) return true;
+  return /^[\s.,;:!?'"()[\]{}\-–—]+$/.test(gap);
+}
+
+function normalizeInlineSpans(text: string, spans: any[]): any[] {
+  if (!text || !Array.isArray(spans) || spans.length === 0) return [];
+  const len = text.length;
+  const filtered = spans
+    .filter((s) => validateSpan(s, len))
+    .map((s) => ({
+      start: Number(s.start),
+      end: Number(s.end),
+      emphasis: s.emphasis,
+      color_token: s.color_token,
+      text: typeof s.text === 'string' ? s.text : undefined
+    }))
+    .filter((s) => {
+      if (!isBoundary(text, s.start) || !isBoundary(text, s.end)) return false;
+      const segment = text.slice(s.start, s.end);
+      if (!segment) return false;
+      if (!isWordChar(segment[0]) || !isWordChar(segment[segment.length - 1])) return false;
+      if (s.text !== undefined && s.text !== segment) return false;
+      return true;
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const merged: any[] = [];
+  for (const span of filtered) {
+    const segment = text.slice(span.start, span.end);
+    const next = { ...span, text: segment };
+    const prev = merged[merged.length - 1];
+    if (
+      prev &&
+      prev.color_token === next.color_token &&
+      prev.end <= next.start &&
+      canMergeGap(text.slice(prev.end, next.start))
+    ) {
+      prev.end = next.end;
+      prev.text = text.slice(prev.start, prev.end);
+      continue;
+    }
+    if (prev && next.start < prev.end) {
+      continue;
+    }
+    merged.push(next);
+  }
+
+  const seen = new Set<string>();
+  const deduped: any[] = [];
+  for (const span of merged) {
+    const key = normalizeSpanText(span.text || '');
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(span);
+  }
+
+  return deduped;
+}
+
+function countDistinctColorTokensInBlock(block: any): number {
+  const content = block.content || {};
+  const tokens = new Set<string>();
+  if (content.color_token && COLOR_TOKENS.has(content.color_token)) {
+    tokens.add(content.color_token);
+  }
+  const spans = Array.isArray(content.spans) ? content.spans : [];
+  spans.forEach((s: any) => {
+    if (s?.color_token && COLOR_TOKENS.has(s.color_token)) tokens.add(s.color_token);
+  });
+  return tokens.size;
+}
+
+function validateEducationalBlockContent(block: any) {
+  const content = block.content || {};
+  switch (block.type) {
+    case 'heading':
+      if (typeof content.text !== 'string') throw new Error('Invalid heading content');
+      if (content.level !== undefined && ![1, 2, 3].includes(Number(content.level))) {
+        throw new Error('Invalid heading level');
+      }
+      if (content.subtitle !== undefined && content.subtitle !== null && typeof content.subtitle !== 'string') {
+        throw new Error('Invalid heading subtitle');
+      }
+      content.spans = normalizeInlineSpans(content.text || '', content.spans || []);
+      if (countDistinctColorTokensInBlock(block) > 2) {
+        throw new Error('At most 2 color tokens per block');
+      }
+      return;
+    case 'paragraph':
+      if (typeof content.text !== 'string') throw new Error('Invalid paragraph content');
+      content.spans = normalizeInlineSpans(content.text || '', content.spans || []);
+      if (countDistinctColorTokensInBlock(block) > 2) {
+        throw new Error('At most 2 color tokens per block');
+      }
+      return;
+    case 'callout':
+      if (typeof content.text !== 'string') throw new Error('Invalid callout content');
+      if (content.color_token !== undefined && !COLOR_TOKENS.has(content.color_token)) {
+        throw new Error('Invalid callout color_token');
+      }
+      content.spans = normalizeInlineSpans(content.text || '', content.spans || []);
+      if (countDistinctColorTokensInBlock(block) > 2) {
+        throw new Error('At most 2 color tokens per block');
+      }
+      return;
+    case 'bullet_list':
+      if (!Array.isArray(content.items)) throw new Error('Invalid bullet_list content');
+      return;
+    case 'numbered_list':
+      if (!Array.isArray(content.items)) throw new Error('Invalid numbered_list content');
+      return;
+    case 'code':
+      if (typeof content.code !== 'string') throw new Error('Invalid code content');
+      return;
+    case 'divider':
+      return;
+    case 'table':
+      if (!Array.isArray(content.rows)) throw new Error('Invalid table content');
+      if (content.columns !== undefined && !Array.isArray(content.columns)) {
+        throw new Error('Invalid table content');
+      }
+      return;
+    default:
+      throw new Error('Unsupported block type');
+  }
+}
+
+function normalizeEducationalBlocksForInsert(blocks: any[]): any[] {
+  const COLORED_TYPES = new Set(['heading', 'paragraph', 'callout']);
+  let consecutiveColored = 0;
+  return blocks.map((block: any) => {
+    const raw = block.content || {};
+    let content = { ...raw };
+    const isColored = COLORED_TYPES.has(block.type) && !!content.color_token;
+    if (isColored) {
+      consecutiveColored++;
+      if (consecutiveColored > 3) {
+        const { color_token, ...restContent } = content;
+        content = restContent;
+        consecutiveColored = 0;
+      }
+    } else {
+      consecutiveColored = 0;
+    }
+
+    if (block.type === 'bullet_list') {
+      return { type: 'list', content: { ordered: false, items: raw.items || [], nested: false } };
+    }
+    if (block.type === 'numbered_list') {
+      return { type: 'list', content: { ordered: true, items: raw.items || [], nested: false } };
+    }
+    const { _meta, ...rest } = content;
+    return { type: block.type, content: rest };
   });
 }
 
@@ -225,15 +500,24 @@ function validateBlockContent(block: any) {
       if (content.subtitle !== undefined && content.subtitle !== null && typeof content.subtitle !== 'string') {
         throw new Error('Invalid heading subtitle');
       }
+      if (Array.isArray(content.spans) || content.spans != null) {
+        content.spans = normalizeInlineSpans(content.text || '', content.spans || []);
+      }
       return;
     case 'paragraph':
       if (typeof content.text !== 'string') throw new Error('Invalid paragraph content');
+      if (Array.isArray(content.spans) || content.spans != null) {
+        content.spans = normalizeInlineSpans(content.text || '', content.spans || []);
+      }
       return;
     case 'quote':
       if (typeof content.text !== 'string') throw new Error('Invalid quote content');
       return;
     case 'callout':
       if (typeof content.text !== 'string') throw new Error('Invalid callout content');
+      if (Array.isArray(content.spans) || content.spans != null) {
+        content.spans = normalizeInlineSpans(content.text || '', content.spans || []);
+      }
       return;
     case 'list':
       if (!Array.isArray(content.items)) throw new Error('Invalid list content');
@@ -327,6 +611,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as GeneratePayload;
   const pageId = body.page_id;
   const language = body.language_code || 'en';
+  const mode = body.mode === 'standard' ? 'standard' : 'educational';
   const selectedContentTypes = Array.isArray(body.selected_content_types)
     ? body.selected_content_types
     : [];
@@ -432,21 +717,31 @@ export async function POST(request: NextRequest) {
     MAX_CONTEXT_CHARS
   );
 
-  const { systemPrompt, userPrompt } = buildPrompt({
-    pageTitle: page.title || '',
-    manualContent: combinedManual,
-    attachmentContent: combinedAttachments,
-    language,
-    selectedContentTypes,
-    userPreferences,
-    sourcesContent
-  });
+  const { systemPrompt, userPrompt } =
+    mode === 'educational'
+      ? buildEducationalPrompt({
+          pageTitle: page.title || '',
+          manualContent: combinedManual,
+          attachmentContent: combinedAttachments,
+          language,
+          sourcesContent
+        })
+      : buildPrompt({
+          pageTitle: page.title || '',
+          manualContent: combinedManual,
+          attachmentContent: combinedAttachments,
+          language,
+          selectedContentTypes,
+          userPreferences,
+          sourcesContent
+        });
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'OpenAI key missing' }, { status: 500 });
   }
 
   try {
+    console.log('[dashboard] ai generate start', { userId: user.id, pageId });
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -481,24 +776,45 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || '';
     const parsed = parseJsonResponse(content);
-    validateBlocksPayload(parsed);
-    parsed.blocks.forEach((block: any) => validateBlockContent(block));
+    const payload = Array.isArray(parsed) ? { blocks: parsed } : parsed;
+    const isEducational = mode === 'educational';
+    validateBlocksPayload(payload, isEducational);
+
+    payload.blocks = payload.blocks.map((block: any) => normalizeColorContract(block));
+
+    if (isEducational) {
+      payload.blocks.forEach((block: any) => validateEducationalBlockContent(block));
+    } else {
+      payload.blocks.forEach((block: any) => validateBlockContent(block));
+    }
+
+    const blocksToInsert = isEducational
+      ? normalizeEducationalBlocksForInsert(payload.blocks)
+      : payload.blocks;
 
     const currentMaxPosition =
       manualBlocks.length > 0 ? manualBlocks[manualBlocks.length - 1].position : 0;
-    let position = currentMaxPosition;
+    const basePosition = currentMaxPosition;
     const now = new Date().toISOString();
 
-    const rows = parsed.blocks.map((block: any, index: number) => {
-      position += 1 + index * 0.01;
+    const rows = blocksToInsert.map((block: any, index: number) => {
+      const position = basePosition + 1 + index * 0.01;
+      const raw = block.content || {};
+      const content: Record<string, unknown> = {
+        ...raw,
+        _meta: { source: 'ai' }
+      };
+      const resolvedToken =
+        raw.color_token ?? raw.colorToken ?? block.style?.color_token ?? block.style?.colorToken;
+      if (resolvedToken != null) {
+        content.color_token = resolvedToken;
+        delete content.colorToken;
+      }
       return {
         page_id: pageId,
         logical_id: crypto.randomUUID(),
         type: block.type,
-        content: {
-          ...block.content,
-          _meta: { source: 'ai' }
-        },
+        content,
         position,
         version: 1,
         created_at: now,
@@ -509,9 +825,21 @@ export async function POST(request: NextRequest) {
 
     const { error: insertError } = await supabaseAdmin.from('blocks').insert(rows);
     if (insertError) {
+      console.log('[dashboard] ai generate insert failed', { userId: user.id, pageId, error: insertError.message });
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
+    const isFirstAi = await markPageAiUsage({ userId: user.id, pageId: pageId, firstAiAt: now });
+    await incrementUserStats({
+      userId: user.id,
+      aiCallsDelta: 1,
+      pagesWithAiDelta: isFirstAi ? 1 : 0,
+      lastActivityAt: now
+    });
+    await incrementDailyActivity({ userId: user.id, aiCallsDelta: 1 });
+    await touchRecentPage({ userId: user.id, pageId: pageId, accessedAt: now });
+
+    console.log('[dashboard] ai generate stats updated', { userId: user.id, pageId, isFirstAi });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('AI generation failed:', error);

@@ -48,11 +48,66 @@ create table public.subscriptions (
   constraint subscriptions_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
+create table public.user_stats (
+  user_id uuid not null,
+  total_pages_count integer not null default 0,
+  pages_with_ai_count integer not null default 0,
+  total_ai_calls integer not null default 0,
+  last_activity_at timestamp with time zone null,
+  constraint user_stats_pkey primary key (user_id),
+  constraint user_stats_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.user_activity_daily (
+  user_id uuid not null,
+  activity_date date not null,
+  pages_created_count integer not null default 0,
+  ai_calls_count integer not null default 0,
+  constraint user_activity_daily_pkey primary key (user_id, activity_date),
+  constraint user_activity_daily_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.user_recent_pages (
+  user_id uuid not null,
+  page_id uuid not null,
+  last_accessed_at timestamp with time zone not null default now(),
+  constraint user_recent_pages_pkey primary key (user_id, page_id),
+  constraint user_recent_pages_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE,
+  constraint user_recent_pages_page_id_fkey foreign KEY (page_id) references pages (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.user_page_ai_usage (
+  user_id uuid not null,
+  page_id uuid not null,
+  first_ai_at timestamp with time zone not null default now(),
+  constraint user_page_ai_usage_pkey primary key (user_id, page_id),
+  constraint user_page_ai_usage_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE,
+  constraint user_page_ai_usage_page_id_fkey foreign KEY (page_id) references pages (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.user_subscription_status (
+  user_id uuid not null,
+  trial_status text null,
+  subscription_status text null,
+  updated_at timestamp with time zone not null default now(),
+  constraint user_subscription_status_pkey primary key (user_id),
+  constraint user_subscription_status_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index user_activity_daily_user_date_idx on public.user_activity_daily (user_id, activity_date);
+create index user_recent_pages_user_access_idx on public.user_recent_pages (user_id, last_accessed_at desc);
+create index user_page_ai_usage_user_idx on public.user_page_ai_usage (user_id);
+
 -- Enable RLS on all tables
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_trials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_activity_daily ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_recent_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_page_ai_usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_subscription_status ENABLE ROW LEVEL SECURITY;
 
 -- Users table policies
 CREATE POLICY "Users can read their own data" ON public.users
@@ -101,4 +156,69 @@ CREATE POLICY "Users can insert their own subscriptions" ON public.subscriptions
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Service role full access to subscriptions" ON public.subscriptions
+  FOR ALL TO service_role USING (true);
+
+-- User stats policies
+CREATE POLICY "Users can read their own stats" ON public.user_stats
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own stats" ON public.user_stats
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own stats" ON public.user_stats
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role full access to user_stats" ON public.user_stats
+  FOR ALL TO service_role USING (true);
+
+-- User activity daily policies
+CREATE POLICY "Users can read their own daily activity" ON public.user_activity_daily
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own daily activity" ON public.user_activity_daily
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own daily activity" ON public.user_activity_daily
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role full access to user_activity_daily" ON public.user_activity_daily
+  FOR ALL TO service_role USING (true);
+
+-- User recent pages policies
+CREATE POLICY "Users can read their own recent pages" ON public.user_recent_pages
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own recent pages" ON public.user_recent_pages
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own recent pages" ON public.user_recent_pages
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role full access to user_recent_pages" ON public.user_recent_pages
+  FOR ALL TO service_role USING (true);
+
+-- User page AI usage policies
+CREATE POLICY "Users can read their own AI usage pages" ON public.user_page_ai_usage
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own AI usage pages" ON public.user_page_ai_usage
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own AI usage pages" ON public.user_page_ai_usage
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role full access to user_page_ai_usage" ON public.user_page_ai_usage
+  FOR ALL TO service_role USING (true);
+
+-- User subscription status policies
+CREATE POLICY "Users can read their own subscription status" ON public.user_subscription_status
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own subscription status" ON public.user_subscription_status
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own subscription status" ON public.user_subscription_status
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role full access to user_subscription_status" ON public.user_subscription_status
   FOR ALL TO service_role USING (true);

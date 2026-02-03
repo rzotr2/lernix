@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase-admin';
+import { touchRecentPage, updateLastActivity } from '@/utils/dashboard-stats';
 
 type UpdatePayload = {
   title?: string;
@@ -84,6 +85,9 @@ export async function PATCH(
   if (!data) {
     return NextResponse.json({ error: 'Page not found' }, { status: 404 });
   }
+
+  await touchRecentPage({ userId: user.id, pageId: data.id, accessedAt: now });
+  await updateLastActivity({ userId: user.id, lastActivityAt: now });
 
   return NextResponse.json({ page: data });
 }

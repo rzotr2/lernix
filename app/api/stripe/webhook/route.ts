@@ -46,6 +46,21 @@ async function checkExistingSubscription(customerId: string): Promise<boolean> {
   return !!existingSubs;
 }
 
+async function upsertUserSubscriptionStatus(userId: string, subscriptionStatus: string) {
+  const trialStatus = subscriptionStatus === 'trialing' ? 'active' : 'expired';
+  await supabaseAdmin
+    .from('user_subscription_status')
+    .upsert(
+      {
+        user_id: userId,
+        subscription_status: subscriptionStatus,
+        trial_status: trialStatus,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: 'user_id' }
+    );
+}
+
 // Currently Handled Events:
 // 1. checkout.session.completed - When a customer completes checkout
 // 2. customer.subscription.created - When a new subscription is created
@@ -173,7 +188,7 @@ export const POST = withCors(async function POST(request: NextRequest) {
       case 'customer.subscription.trial_will_end': {
         const subscription = event.data.object as Stripe.Subscription;
         
-        await supabaseAdmin
+        const { data: updatedSub } = await supabaseAdmin
           .from('subscriptions')
           .update({
             status: subscription.status,
@@ -182,6 +197,11 @@ export const POST = withCors(async function POST(request: NextRequest) {
             updated_at: new Date().toISOString()
           })
           .eq('stripe_subscription_id', subscription.id);
+
+        const userId = (updatedSub as any)?.[0]?.user_id;
+        if (userId) {
+          await upsertUserSubscriptionStatus(userId, subscription.status);
+        }
         
         break;
       }
@@ -189,7 +209,7 @@ export const POST = withCors(async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         
-        await supabaseAdmin
+        const { data: updatedSub } = await supabaseAdmin
           .from('subscriptions')
           .update({
             status: subscription.status,
@@ -198,6 +218,11 @@ export const POST = withCors(async function POST(request: NextRequest) {
             updated_at: new Date().toISOString()
           })
           .eq('stripe_subscription_id', subscription.id);
+
+        const userId = (updatedSub as any)?.[0]?.user_id;
+        if (userId) {
+          await upsertUserSubscriptionStatus(userId, subscription.status);
+        }
         
         break;
       }
@@ -264,6 +289,7 @@ async function createSubscription(subscriptionId: string, userId: string, custom
         logWebhookEvent('Error updating existing subscription', updateError);
         throw updateError;
       }
+      await upsertUserSubscriptionStatus(existingData.user_id, stripeSubscription.status);
       return existingData;
     }
 
@@ -289,6 +315,7 @@ async function createSubscription(subscriptionId: string, userId: string, custom
       throw insertError;
     }
 
+    await upsertUserSubscriptionStatus(userId, stripeSubscription.status);
     logWebhookEvent('Successfully created new subscription', data);
     return data;
   } catch (error) {

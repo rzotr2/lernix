@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { locales, defaultLocale } from '@/i18n/config';
 import enMessages from '@/messages/en.json';
@@ -12,10 +11,10 @@ import deMessages from '@/messages/de.json';
 import ukMessages from '@/messages/uk.json';
 import LanguagePicker from '@/components/LanguagePicker';
 import { useLayout } from '@/contexts/LayoutContext';
+import { motion } from 'framer-motion';
 
 export default function TopBar() {
   const { user, signOut } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
   const { toggleSidebar } = useLayout();
   const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
@@ -38,8 +37,9 @@ export default function TopBar() {
 
     const pathLocale = pathname.split('/')[1];
     if (locales.includes(pathLocale as (typeof locales)[number])) {
-      setSelectedLocale(pathLocale as (typeof locales)[number]);
-      window.localStorage.setItem('locale', pathLocale);
+      const newLocale = pathLocale as (typeof locales)[number];
+      setSelectedLocale(newLocale);
+      window.localStorage.setItem('locale', newLocale);
     }
   }, [pathname]);
 
@@ -65,7 +65,6 @@ export default function TopBar() {
     try {
       setIsLoggingOut(true);
       await signOut();
-      setIsLoggingOut(false);
     } catch (error) {
       console.error('Logout failed:', error);
       alert('Failed to sign out. Please try again.');
@@ -127,7 +126,6 @@ export default function TopBar() {
               currentLocale={selectedLocale}
               onLocaleChange={handleLocaleChange}
             />
-
             <button
               type="button"
               onClick={handleToggleTheme}
@@ -165,4 +163,4 @@ export default function TopBar() {
       </div>
     </header>
   );
-} 
+}

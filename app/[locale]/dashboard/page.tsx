@@ -1,87 +1,58 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getDashboardData } from '@/services/dashboardService';
+import { DashboardClientPage } from '@/components/DashboardClientPage';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useTranslations } from 'next-intl';
-import {
-  Users,
-  CreditCard,
-  Activity,
-  TrendingUp
-} from 'lucide-react';
-import { MetricCard } from '@/components/MetricCard';
 
 export default function DashboardPage() {
-  const t = useTranslations();
+  const { supabase, user } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const t = useTranslations('dashboard');
 
-  const metrics = [
-    {
-      label: t('metrics.totalUsers'),
-      value: '1,234',
-      icon: <Users className="h-5 w-5 text-primary" />
-    },
-    {
-      label: t('metrics.revenue'),
-      value: '$12.4k',
-      icon: <CreditCard className="h-5 w-5 text-primary" />
-    },
-    {
-      label: t('metrics.activeSessions'),
-      value: '432',
-      icon: <Activity className="h-5 w-5 text-primary" />
-    },
-    {
-      label: t('metrics.growthRate'),
-      value: '18.2%',
-      icon: <TrendingUp className="h-5 w-5 text-primary" />
-    }
-  ];
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        console.log('[dashboard] load start');
+        const dashboardData = await getDashboardData(supabase);
+        if (!active) return;
+        setData(dashboardData);
+        console.log('[dashboard] load done', dashboardData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    load();
+    const refresh = () => load();
+    window.addEventListener('dashboard:refresh', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('dashboard:refresh', refresh);
+    };
+  }, [user, supabase]);
 
-  const recentActivity = [
-    { id: 1, text: t('activity.items.signup') },
-    { id: 2, text: t('activity.items.payment') },
-    { id: 3, text: t('activity.items.settings') }
-  ];
-
-  return (
-    <div className="p-6 text-foreground">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-foreground">
-          {t('dashboard.title')}
-        </h1>
-        <p className="text-sm text-muted">
-          {t('dashboard.subtitle')}
-        </p>
+  if (isLoading) {
+    return (
+      <div className="h-full w-full">
+        <LoadingSpinner fullScreen={false} className="h-full w-full" />
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric) => (
-          <MetricCard
-            key={metric.label}
-            number={metric.value}
-            label={metric.label}
-            icon={metric.icon}
-          />
-        ))}
-      </div>
+  if (!data) {
+    return <div>{t('error.loading')}</div>;
+  }
 
-      <div className="glass-surface-strong mt-8 rounded-xl p-6">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">
-          {t('activity.title')}
-        </h2>
-        <div className="space-y-3 text-sm text-foreground">
-          {recentActivity.length === 0 ? (
-            <p className="text-muted">
-              {t('activity.empty')}
-            </p>
-          ) : (
-            recentActivity.map((item) => (
-              <div key={item.id} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-primary" />
-                <span>{item.text}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return <DashboardClientPage data={data} />;
 }

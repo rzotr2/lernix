@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase-admin';
+import { touchRecentPage, updateLastActivity } from '@/utils/dashboard-stats';
 
 type UpdatePayload = {
   content?: Record<string, unknown>;
@@ -84,6 +85,11 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const now = new Date().toISOString();
+  await touchRecentPage({ userId: user.id, pageId: existing.page_id, accessedAt: now });
+  await updateLastActivity({ userId: user.id, lastActivityAt: now });
+  console.log('[dashboard] block update', { userId: user.id, pageId: existing.page_id, blockId: data.id });
+
   return NextResponse.json({ block: data });
 }
 
@@ -126,6 +132,11 @@ export async function DELETE(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  const now = new Date().toISOString();
+  await touchRecentPage({ userId: user.id, pageId: existing.page_id, accessedAt: now });
+  await updateLastActivity({ userId: user.id, lastActivityAt: now });
+  console.log('[dashboard] block delete', { userId: user.id, pageId: existing.page_id, blockId: data.id });
 
   return NextResponse.json({ block: data });
 }
