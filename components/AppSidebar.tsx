@@ -12,7 +12,6 @@ import {
   ChevronRight,
   File,
   CornerDownRight,
-  Settings,
   Moon,
   Sun,
   Sparkles,
