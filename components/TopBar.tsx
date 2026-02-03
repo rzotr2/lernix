@@ -73,6 +73,13 @@ export default function TopBar() {
     }
   };
 
+  // Hide TopBar on auth pages
+  const isAuthPage = ['/login', '/signup', '/auth', '/verify-email', '/reset-password', '/update-password'].some(path => pathname.includes(path));
+
+  if (isAuthPage) {
+    return null;
+  }
+
   return (
     <header className="fixed left-0 right-0 top-0 z-50 h-16 border-b border-[color:var(--border)] bg-[color:var(--surface-1)] backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4">

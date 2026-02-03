@@ -7,10 +7,17 @@ import { LoginForm } from '@/components/LoginForm';
 import { locales, defaultLocale } from '@/i18n/config';
 
 export default function LoginPage() {
-  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Combine all loading states
+  // We show loader if:
+  // 1. Auth context is initializing (authLoading)
+  // 2. User is already logged in (redirecting...)
+  // 3. Form is submitting (isLoading)
+  const showLoader = authLoading || !!user || isLoading;
 
   useEffect(() => {
     if (user) {
@@ -18,8 +25,6 @@ export default function LoginPage() {
       const isValid = locales.includes(stored as (typeof locales)[number]);
       const nextLocale = isValid ? stored : defaultLocale;
       router.replace(`/${nextLocale}/dashboard`);
-    } else {
-      setIsLoading(false);
     }
   }, [user, router]);
 
@@ -31,32 +36,27 @@ export default function LoginPage() {
       if (isSignUp) {
         const { data, error } = await signUpWithEmail(email, password);
         if (error) throw error;
-        
+
         // Check if the user needs to verify their email
         if (data?.user && !data.user.email_confirmed_at) {
           router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
           return;
         }
-        
-        const stored = window.localStorage.getItem('locale');
-        const isValid = locales.includes(stored as (typeof locales)[number]);
-        const nextLocale = isValid ? stored : defaultLocale;
-        router.replace(`/${nextLocale}/dashboard`);
+
+        // Success - wait for redirect effect
+        // Don't set isLoading(false)
       } else {
         await signInWithEmail(email, password);
-        const stored = window.localStorage.getItem('locale');
-        const isValid = locales.includes(stored as (typeof locales)[number]);
-        const nextLocale = isValid ? stored : defaultLocale;
-        router.replace(`/${nextLocale}/dashboard`);
+        // Success - wait for redirect effect
+        // Don't set isLoading(false)
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Authentication failed');
-    } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading) {
+  if (showLoader) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[color:var(--background)]">
         <div className="text-foreground">Loading...</div>
@@ -67,9 +67,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex mt-20 justify-center bg-[color:var(--background)] px-4">
       <div className="w-full max-w-md">
-        {/* <h1 className="text-4xl font-bold text-center mb-8 text-primary dark:text-white">
-          Lernix
-        </h1> */}
         <LoginForm
           onSubmit={handleSubmit}
           onGoogleSignIn={signInWithGoogle}

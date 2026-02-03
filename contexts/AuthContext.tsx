@@ -13,6 +13,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  authInProgress: boolean;
   supabase: SupabaseClient;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authInProgress, setAuthInProgress] = useState(false);
   const [isSubscriber, setIsSubscriber] = useState(false);
 
   const checkSubscription = useCallback(async (userId: string) => {
@@ -97,6 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         const currentUser = session?.user ?? null;
         setUser(currentUser);
+        if (currentUser) {
+          setAuthInProgress(false);
+        }
 
         if (currentUser) {
           await checkSubscription(currentUser.id);
@@ -110,6 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const newUser = newSession?.user ?? null;
             setSession(newSession);
             setUser(newUser);
+            if (newUser) {
+              setAuthInProgress(false);
+            }
             
             if (newUser) {
               await checkSubscription(newUser.id);
@@ -159,16 +167,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     isLoading,
+    authInProgress,
     supabase,
     signInWithGoogle: async () => {
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
+      setAuthInProgress(true);
+      try {
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`
+          }
+        });
+      } catch (error) {
+        setAuthInProgress(false);
+        throw error;
+      }
     },
     signInWithEmail: async (email: string, password: string) => {
+      setAuthInProgress(true);
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -197,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // You could trigger a welcome back notification here
       }
 
+      setAuthInProgress(false);
       return authData;
     },
     signOut: async () => {
@@ -209,14 +226,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Then perform the actual signout
         await supabase.auth.signOut();
+        setAuthInProgress(false);
         
         // Force redirect to login
         window.location.assign('/login');
       } catch (error) {
         console.error('Error signing out:', error);
+        setAuthInProgress(false);
       }
     },
     signUpWithEmail: async (email: string, password: string) => {
+      setAuthInProgress(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -225,6 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
       if (error) throw error;
+      setAuthInProgress(false);
       return { data, error };
     },
     updatePassword: async (newPassword: string) => {
