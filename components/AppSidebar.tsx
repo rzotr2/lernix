@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useRef, useState, useMemo, useCallback, useEffect, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -16,7 +16,8 @@ import {
   Moon,
   Sun,
   Sparkles,
-  Star
+  Star,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLayout } from '@/contexts/LayoutContext';
@@ -70,10 +71,11 @@ export default function AppSidebar() {
   const t = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
-  const { session, user } = useAuth();
+  const { session, user, signOut } = useAuth();
   const { isSidebarOpen, closeSidebar } = useLayout();
   const [pages, setPages] = useState<PageItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openNodes, setOpenNodes] = useState<Record<string, boolean>>({});
   const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
@@ -387,26 +389,26 @@ export default function AppSidebar() {
       case 'definitions':
         return Array.isArray((content as { items?: unknown }).items)
           ? (content as { items: DefinitionItem[] }).items
-              .map((item) => `${item?.term || ''} ${item?.definition || ''}`)
-              .join(' ')
+            .map((item) => `${item?.term || ''} ${item?.definition || ''}`)
+            .join(' ')
           : '';
       case 'faq':
         return Array.isArray((content as { items?: unknown }).items)
           ? (content as { items: FaqItem[] }).items
-              .map((item) => `${item?.question || ''} ${item?.answer || ''}`)
-              .join(' ')
+            .map((item) => `${item?.question || ''} ${item?.answer || ''}`)
+            .join(' ')
           : '';
       case 'steps':
         return Array.isArray((content as { steps?: unknown }).steps)
           ? (content as { steps: StepItem[] }).steps
-              .map((item) => `${item?.title || ''} ${item?.description || ''}`)
-              .join(' ')
+            .map((item) => `${item?.title || ''} ${item?.description || ''}`)
+            .join(' ')
           : '';
       case 'timeline':
         return Array.isArray((content as { items?: unknown }).items)
           ? (content as { items: TimelineItem[] }).items
-              .map((item) => `${item?.title || ''} ${item?.description || ''}`)
-              .join(' ')
+            .map((item) => `${item?.title || ''} ${item?.description || ''}`)
+            .join(' ')
           : '';
       case 'table':
         return Array.isArray((content as { rows?: unknown }).rows)
@@ -417,13 +419,12 @@ export default function AppSidebar() {
       case 'graph':
         return Array.isArray((content as { nodes?: unknown }).nodes)
           ? (content as { nodes: GraphNode[] }).nodes
-              .map((node) => node?.label || node?.id || '')
-              .join(' ')
+            .map((node) => node?.label || node?.id || '')
+            .join(' ')
           : '';
       case 'image':
-        return `${(content as { alt?: string }).alt || ''} ${
-          (content as { caption?: string }).caption || ''
-        }`.trim();
+        return `${(content as { alt?: string }).alt || ''} ${(content as { caption?: string }).caption || ''
+          }`.trim();
       default:
         return '';
     }
@@ -517,9 +518,8 @@ export default function AppSidebar() {
           <div className="relative group">
             {depth > 0 && (
               <span
-                className={`pointer-events-none absolute bottom-0 top-0 w-px ${
-                  isInActivePath ? 'bg-blue-500/50' : 'bg-white/5'
-                } transition-colors`}
+                className={`pointer-events-none absolute bottom-0 top-0 w-px ${isInActivePath ? 'bg-blue-500/50' : 'bg-white/5'
+                  } transition-colors`}
                 style={{ left: `${indent - 8}px` }}
               />
             )}
@@ -538,23 +538,20 @@ export default function AppSidebar() {
                   page: node
                 });
               }}
-              className={`relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                isActive
-                  ? 'bg-blue-500/10 text-white border-l-2 border-blue-400 [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
-                  : 'text-muted hover:text-foreground'
-              } ${
-                depth === 0 && hasChildren
+              className={`relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${isActive
+                ? 'bg-blue-500/10 text-white border-l-2 border-blue-400 [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
+                : 'text-muted hover:text-foreground'
+                } ${depth === 0 && hasChildren
                   ? 'sticky top-0 z-10 backdrop-blur-md bg-black/60'
                   : ''
-              }`}
+                }`}
               style={{ paddingLeft: `${indent}px` }}
             >
               {depth > 0 && (
                 <CornerDownRight
                   strokeWidth={1.2}
-                  className={`absolute -left-2 h-3.5 w-3.5 ${
-                    isInActivePath ? 'text-blue-400/60' : 'text-white/10'
-                  }`}
+                  className={`absolute -left-2 h-3.5 w-3.5 ${isInActivePath ? 'text-blue-400/60' : 'text-white/10'
+                    }`}
                   style={{ top: '50%', transform: 'translateY(-50%)' }}
                 />
               )}
@@ -655,15 +652,23 @@ export default function AppSidebar() {
     );
   };
 
+  const handleSidebarLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   return (
     <aside
-      className={`fixed left-0 top-[var(--topbar-height)] z-40 h-[calc(100vh-var(--topbar-height))] w-full sm:w-80 lg:w-72 border-r border-[color:var(--border)] bg-[color:var(--surface-1)] backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      className={`fixed left-0 top-[var(--topbar-height)] z-40 h-[calc(100vh-var(--topbar-height))] w-full sm:w-80 lg:w-72 border-r border-[color:var(--border)] bg-[color:var(--surface-1)] backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
     >
       <div ref={asideRef} className="relative flex h-full flex-col">
-        <div className="flex-1 flex flex-col min-h-0 space-y-6 px-5 py-6">
-          <div className="space-y-3">
+        {/* Main Content Area - Grow and Scroll */}
+        <div className="flex-1 flex flex-col min-h-0 space-y-6 px-5 py-6 overflow-hidden">
+          <div className="space-y-3 flex-shrink-0">
             <motion.button
               type="button"
               whileHover={{ scale: 1.02 }}
@@ -698,21 +703,21 @@ export default function AppSidebar() {
             </div>
           </div>
 
-          <div className="space-y-2 flex flex-col min-h-0">
-            <div className="text-[11px] uppercase tracking-[0.3em] text-muted">
+          <div className="space-y-2 flex flex-col flex-1 min-h-0">
+            <div className="text-[11px] uppercase tracking-[0.3em] text-muted flex-shrink-0">
               Navigation
             </div>
 
             {isLoading && (
-              <div className="text-xs text-muted">{t('pages.loading')}</div>
+              <div className="text-xs text-muted flex-shrink-0">{t('pages.loading')}</div>
             )}
             {isSearching && searchQuery.trim() && (
-              <div className="text-xs text-muted">{t('sidebar.searching')}</div>
+              <div className="text-xs text-muted flex-shrink-0">{t('sidebar.searching')}</div>
             )}
-            {error && <div className="text-xs text-rose-500">{error}</div>}
+            {error && <div className="text-xs text-rose-500 flex-shrink-0">{error}</div>}
 
             {!isLoading && !error && displayedPages.length === 0 && (
-              <div className="text-sm text-muted">{t('pages.empty')}</div>
+              <div className="text-sm text-muted flex-shrink-0">{t('pages.empty')}</div>
             )}
 
             <Tooltip.Provider>
@@ -732,57 +737,72 @@ export default function AppSidebar() {
                     backgroundImage: `radial-gradient(180px circle at ${spotlightPos.x}px ${spotlightPos.y}px, rgba(59,130,246,0.12), transparent 60%)`
                   }}
                 />
-                <div className="space-y-1 min-w-0">{tree.map((node) => renderNode(node))}</div>
+                <div className="space-y-1 min-w-0 pb-2">{tree.map((node) => renderNode(node))}</div>
               </div>
             </Tooltip.Provider>
           </div>
         </div>
 
-        <div className="px-5 pb-6">
+        {/* Footer Area - Fixed at bottom */}
+        <div className="px-5 pb-6 flex-shrink-0 bg-[color:var(--surface-1)]">
           <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
             <LanguagePicker
               currentLocale={selectedLocale}
               onLocaleChange={handleLocaleChange}
             />
-            <button
-              type="button"
-              onClick={handleToggleTheme}
-              aria-label="Toggle theme"
-              className="btn-ghost inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-md transition hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]"
-            >
-              <motion.span
-                key={theme}
-                initial={{ rotate: -90, opacity: 0, scale: 0.8 }}
-                animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                exit={{ rotate: 90, opacity: 0, scale: 0.8 }}
-                transition={{ type: 'spring', stiffness: 240, damping: 18 }}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleTheme}
+                aria-label="Toggle theme"
+                className="btn-ghost inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-md transition hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]"
               >
-                {theme === 'dark' ? (
-                  <Moon className="h-4 w-4 text-slate-200" strokeWidth={1.5} />
-                ) : (
-                  <Sun className="h-4 w-4 text-amber-500" strokeWidth={1.5} />
-                )}
-              </motion.span>
-            </button>
+                <motion.span
+                  key={theme}
+                  initial={{ rotate: -90, opacity: 0, scale: 0.8 }}
+                  animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                  exit={{ rotate: 90, opacity: 0, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 240, damping: 18 }}
+                >
+                  {theme === 'dark' ? (
+                    <Moon className="h-4 w-4 text-slate-200" strokeWidth={1.5} />
+                  ) : (
+                    <Sun className="h-4 w-4 text-amber-500" strokeWidth={1.5} />
+                  )}
+                </motion.span>
+              </button>
+
+              {/* Mobile Sign Out Button */}
+              <button
+                type="button"
+                onClick={handleSidebarLogout}
+                aria-label="Sign out"
+                className="btn-ghost inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-md transition hover:shadow-[0_0_18px_rgba(244,63,94,0.3)] text-rose-400 hover:text-rose-500"
+              >
+                <LogOut strokeWidth={1.5} className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <motion.div
             whileHover={{ y: -2 }}
             className="flex items-center justify-between rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-3 py-3 shadow-[0_0_20px_rgba(15,23,42,0.18)] transition-colors hover:bg-[color:var(--surface-3)]"
           >
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative flex-shrink-0">
                 <span className="absolute inset-0 rounded-full bg-cyan-400/30 blur-md" />
-                <div className="relative h-10 w-10 overflow-hidden rounded-full border border-cyan-200/40 bg-[color:var(--surface-strong)]">
-                  {user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                <div className="relative h-10 w-10 overflow-hidden rounded-full border border-cyan-200/40 bg-[color:var(--surface-strong)] flex items-center justify-center">
+                  {(user?.user_metadata?.avatar_url || user?.user_metadata?.picture) && !avatarError ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
                       alt={user?.user_metadata?.full_name || user?.email || 'User'}
                       className="h-full w-full object-cover"
+                      onError={() => setAvatarError(true)}
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-foreground">
+                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-foreground bg-gradient-to-br from-cyan-500/20 to-blue-600/20">
                       {(user?.user_metadata?.full_name || user?.email || 'Pilot')
                         .slice(0, 2)
                         .toUpperCase()}
@@ -790,125 +810,122 @@ export default function AppSidebar() {
                   )}
                 </div>
               </div>
-              <div>
-                <div className="text-sm font-medium text-foreground">
+              <div className="min-w-0 flex-1">
+                <div className="text-xs sm:text-sm font-medium text-foreground truncate">
                   {user?.user_metadata?.full_name ||
                     user?.user_metadata?.name ||
                     user?.email?.split('@')[0] ||
                     'Pilot'}
                 </div>
-                <div className="text-xs text-muted">Pilot Badge</div>
+                <div className="text-[10px] sm:text-xs text-muted truncate">
+                  {user?.email}
+                </div>
               </div>
             </div>
-            <Link
-              href="/profile"
-              onClick={closeSidebar}
-              className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface-3)] p-2 text-muted transition-colors hover:text-foreground"
-              aria-label="Settings"
-            >
-              <Settings strokeWidth={1.5} className="h-4 w-4" />
-            </Link>
+            {/* Optional: Add settings icon or something here if needed, or leave blank to keep justify-between working for the single child group if no secondary action */}
           </motion.div>
         </div>
-      </div>
 
-        {contextMenu.open && contextMenu.page ? (
-          <div
-            ref={contextMenuRef}
-            className="absolute z-[60] min-w-[190px] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-1 text-[13px] text-foreground shadow-[0_16px_40px_rgba(2,6,23,0.35)]"
-            style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
-            onClick={(event) => event.stopPropagation()}
-          >
-          <button
-            type="button"
-            onClick={() => handleOpenPage(contextMenu.page!)}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.open')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setRenamingId(contextMenu.page!.id);
-              setRenameValue(contextMenu.page!.title || '');
-              closeContextMenu();
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.rename')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleCreateSubpage(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.newChild')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleDuplicate(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.duplicate')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleToggleFavorite(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {contextMenu.page.is_favorite ? t('pages.removeFromFavorites') : t('pages.addToFavorites')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleCopyLink(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.copyLink')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleExportPdf(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.exportPdf')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleOpenNewTab(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
-          >
-            {t('pages.openNewTab')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              closeContextMenu();
-              handleDelete(contextMenu.page!);
-            }}
-            className="w-full rounded-md px-2.5 py-1.5 text-left text-red-500 hover:bg-red-500/10"
-          >
-            {t('pages.delete')}
-          </button>
-          </div>
-        ) : null}
+        {
+          contextMenu.open && contextMenu.page ? (
+            <div
+              ref={contextMenuRef}
+              className="absolute z-[60] min-w-[190px] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-1 text-[13px] text-foreground shadow-[0_16px_40px_rgba(2,6,23,0.35)]"
+              style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => handleOpenPage(contextMenu.page!)}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.open')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRenamingId(contextMenu.page!.id);
+                  setRenameValue(contextMenu.page!.title || '');
+                  closeContextMenu();
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.rename')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleCreateSubpage(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.newChild')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleDuplicate(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.duplicate')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleToggleFavorite(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {contextMenu.page.is_favorite ? t('pages.removeFromFavorites') : t('pages.addToFavorites')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleCopyLink(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.copyLink')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleExportPdf(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.exportPdf')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleOpenNewTab(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+              >
+                {t('pages.openNewTab')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeContextMenu();
+                  handleDelete(contextMenu.page!);
+                }}
+                className="w-full rounded-md px-2.5 py-1.5 text-left text-red-500 hover:bg-red-500/10"
+              >
+                {t('pages.delete')}
+              </button>
+            </div>
+          ) : null
+        }
+      </div>
     </aside>
   );
 }

@@ -123,7 +123,7 @@ export default function TopBar() {
         <div className="flex items-center gap-4">
           <Link
             href={`/${selectedLocale}/dashboard`}
-            className="btn-primary hidden sm:inline-flex items-center rounded-full px-5 py-2 text-sm font-semibold transition hover:-translate-y-0.5"
+            className="btn-primary inline-flex items-center rounded-full px-5 py-2 text-sm font-semibold transition hover:-translate-y-0.5"
           >
             {messages.header.dashboard}
           </Link>
@@ -158,7 +158,7 @@ export default function TopBar() {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut || !user}
-            className="group relative inline-flex items-center gap-2 pb-1 text-sm font-medium text-muted transition hover:text-foreground disabled:opacity-50"
+            className="group relative hidden sm:inline-flex items-center gap-2 pb-1 text-sm font-medium text-muted transition hover:text-foreground disabled:opacity-50"
           >
             <LogOut strokeWidth={1.5} className="h-4 w-4" />
             <span className="drop-shadow-[0_0_10px_rgba(56,189,248,0.2)]">
