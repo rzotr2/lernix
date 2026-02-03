@@ -28,7 +28,7 @@ export default function WorkspaceShell({ children }: WorkspaceShellProps) {
           type="button"
           aria-label="Close sidebar"
           onClick={closeSidebar}
-          className="fixed left-0 right-0 top-[var(--topbar-height)] z-30 h-[calc(100vh-var(--topbar-height))] bg-black/20 backdrop-blur-sm lg:hidden"
+          className="fixed left-0 right-0 top-[var(--topbar-height)] z-[90] h-[calc(100vh-var(--topbar-height))] bg-black/20 backdrop-blur-sm lg:hidden"
         />
       )}
     </div>

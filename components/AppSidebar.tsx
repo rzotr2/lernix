@@ -190,6 +190,7 @@ export default function AppSidebar() {
       })) as PageItem;
       setPages((prev) => [...prev, created]);
       window.dispatchEvent(new Event('pages:refresh'));
+      closeSidebar(); // Auto-close sidebar
       router.push(`/${locale}/pages/${created.slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create page');
@@ -661,7 +662,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className={`fixed left-0 top-[var(--topbar-height)] z-40 h-[calc(100vh-var(--topbar-height))] w-full sm:w-80 lg:w-72 border-r border-[color:var(--border)] bg-[color:var(--surface-1)] backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      className={`fixed left-0 top-[var(--topbar-height)] z-[100] h-[calc(100vh-var(--topbar-height))] w-full sm:w-80 lg:w-72 border-r border-[color:var(--border)] bg-[color:var(--surface-1)] backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 overflow-hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
     >
       <div ref={asideRef} className="relative flex h-full flex-col">
@@ -669,14 +670,14 @@ export default function AppSidebar() {
         <div className="flex-1 flex flex-col min-h-0 space-y-6 px-5 py-6 overflow-hidden">
           <div className="space-y-3 flex-shrink-0">
             <motion.button
-              type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleCreate}
-              className="btn-ghost flex w-full items-center justify-between rounded-full border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-blue-400/40"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all hover:shadow-[0_0_30px_rgba(56,189,248,0.5)]"
             >
+              <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100" />
               <span className="flex items-center gap-2">
-                <Sparkles strokeWidth={1.5} className="h-4 w-4 text-cyan-400" />
+                <Sparkles strokeWidth={1.5} className="h-4 w-4 text-cyan-200" />
                 {t('pages.newPage')}
               </span>
             </motion.button>
@@ -684,39 +685,31 @@ export default function AppSidebar() {
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
               <input
+                type="text"
+                placeholder={t('pages.searchPlaceholder')}
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t('sidebar.smartSearchPlaceholder')}
-                className="input-field w-full rounded-full pl-9 pr-8 py-2 text-xs"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-2)] py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-muted focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               />
-              {searchQuery.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-foreground"
-                  aria-label={t('sidebar.clearSearch')}
-                >
-                  ×
-                </button>
-              ) : null}
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span className="block h-3 w-3 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+                </div>
+              )}
             </div>
           </div>
 
           <div className="space-y-2 flex flex-col flex-1 min-h-0">
             <div className="text-[11px] uppercase tracking-[0.3em] text-muted flex-shrink-0">
-              Navigation
+              {t('pages.navigation')}
             </div>
 
             {isLoading && (
               <div className="text-xs text-muted flex-shrink-0">{t('pages.loading')}</div>
             )}
-            {isSearching && searchQuery.trim() && (
-              <div className="text-xs text-muted flex-shrink-0">{t('sidebar.searching')}</div>
-            )}
-            {error && <div className="text-xs text-rose-500 flex-shrink-0">{error}</div>}
 
-            {!isLoading && !error && displayedPages.length === 0 && (
-              <div className="text-sm text-muted flex-shrink-0">{t('pages.empty')}</div>
+            {error && (
+              <div className="text-xs text-red-400 flex-shrink-0">{error}</div>
             )}
 
             <Tooltip.Provider>
@@ -748,6 +741,7 @@ export default function AppSidebar() {
             <LanguagePicker
               currentLocale={selectedLocale}
               onLocaleChange={handleLocaleChange}
+              side="top"
             />
 
             <div className="flex items-center gap-2">
@@ -755,6 +749,7 @@ export default function AppSidebar() {
                 type="button"
                 onClick={handleToggleTheme}
                 aria-label="Toggle theme"
+                // ...
                 className="btn-ghost inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-md transition hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]"
               >
                 <motion.span

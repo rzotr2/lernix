@@ -129,7 +129,7 @@ export function DashboardClientPage({ data }: { data: DashboardData }) {
         transition={{ duration: 0.5 }}
       >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-xl md:text-3xl font-bold text-foreground truncate">
             {t('title', { name: welcomeName })}
           </h1>
           <p className="text-sm text-muted mt-1">{t('dailyTip')}</p>

@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
-  const { toggleSidebar } = useLayout();
+  const { toggleSidebar, closeSidebar } = useLayout();
   const [selectedLocale, setSelectedLocale] = useState(defaultLocale);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -94,6 +94,7 @@ export default function TopBar() {
           </button>
           <Link
             href={`/${selectedLocale}/dashboard`}
+            onClick={closeSidebar}
             className="group flex items-center gap-3 text-md font-semibold text-foreground transition active:scale-95"
           >
             <span className="relative flex h-7 w-7 items-center justify-center">
@@ -123,6 +124,7 @@ export default function TopBar() {
         <div className="flex items-center gap-4">
           <Link
             href={`/${selectedLocale}/dashboard`}
+            onClick={closeSidebar}
             className="btn-primary inline-flex items-center rounded-full px-5 py-2 text-sm font-semibold transition hover:-translate-y-0.5"
           >
             {messages.header.dashboard}
@@ -167,7 +169,7 @@ export default function TopBar() {
             <span className="pointer-events-none absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-white/70 transition-all duration-200 group-hover:w-full" />
           </button>
         </div>
-      </div>
-    </header>
+      </div >
+    </header >
   );
 }

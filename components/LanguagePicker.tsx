@@ -15,11 +15,13 @@ const languages = [
 type LanguagePickerProps = {
   currentLocale: (typeof locales)[number];
   onLocaleChange?: (locale: (typeof locales)[number]) => void;
+  side?: 'top' | 'bottom';
 };
 
 export default function LanguagePicker({
   currentLocale,
-  onLocaleChange
+  onLocaleChange,
+  side = 'bottom'
 }: LanguagePickerProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -79,11 +81,11 @@ export default function LanguagePicker({
           <motion.div
             ref={menuRef}
             role="menu"
-            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            initial={{ opacity: 0, y: side === 'top' ? -8 : 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            exit={{ opacity: 0, y: side === 'top' ? -6 : 6, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-            className="absolute right-0 top-12 z-50 w-40 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-2 text-sm text-foreground shadow-[0_15px_40px_rgba(2,6,23,0.25)] backdrop-blur-xl"
+            className={`absolute right-0 ${side === 'top' ? 'bottom-full mb-2' : 'top-12'} z-50 w-40 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-2 text-sm text-foreground shadow-[0_15px_40px_rgba(2,6,23,0.25)] backdrop-blur-xl`}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 setIsOpen(false);
@@ -103,11 +105,10 @@ export default function LanguagePicker({
                     setIsOpen(false);
                     buttonRef.current?.focus();
                   }}
-                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
-                    isActive
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition ${isActive
                       ? 'bg-white/10 text-foreground'
                       : 'text-muted hover:bg-white/5 hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   <span>{lang.label}</span>
                   <span className="text-xs text-muted">{lang.name}</span>
