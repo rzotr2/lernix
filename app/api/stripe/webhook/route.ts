@@ -198,7 +198,8 @@ export const POST = withCors(async function POST(request: NextRequest) {
           })
           .eq('stripe_subscription_id', subscription.id);
 
-        const userId = (updatedSub as any)?.[0]?.user_id;
+        const updatedRows = (updatedSub as { user_id?: string }[] | null) || [];
+        const userId = updatedRows[0]?.user_id;
         if (userId) {
           await upsertUserSubscriptionStatus(userId, subscription.status);
         }
@@ -219,7 +220,8 @@ export const POST = withCors(async function POST(request: NextRequest) {
           })
           .eq('stripe_subscription_id', subscription.id);
 
-        const userId = (updatedSub as any)?.[0]?.user_id;
+        const updatedRows = (updatedSub as { user_id?: string }[] | null) || [];
+        const userId = updatedRows[0]?.user_id;
         if (userId) {
           await upsertUserSubscriptionStatus(userId, subscription.status);
         }

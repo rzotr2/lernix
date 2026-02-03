@@ -4,6 +4,17 @@ import { supabaseAdmin } from '@/utils/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
+type RecentRow = {
+  page_id: string;
+  last_accessed_at: string;
+  pages?: {
+    id: string;
+    title: string | null;
+    slug: string;
+    updated_at: string | null;
+  } | null;
+};
+
 async function getAuthedUser(request: NextRequest) {
   const authHeader = request.headers.get('authorization') || '';
   const token = authHeader.replace('Bearer ', '').trim();
@@ -101,8 +112,8 @@ export async function GET(request: NextRequest) {
     .order('last_accessed_at', { ascending: false })
     .limit(5);
 
-  const recentPages = (recentRows || [])
-    .map((row: any) => ({
+  const recentPages = ((recentRows as RecentRow[] | null) || [])
+    .map((row) => ({
       id: row.pages?.id || row.page_id,
       title: row.pages?.title || 'Untitled',
       slug: row.pages?.slug || '',

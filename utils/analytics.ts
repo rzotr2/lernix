@@ -2,9 +2,7 @@
 
 import posthog from 'posthog-js'
 
-type EventProperties = {
-  [key: string]: any
-}
+type EventProperties = Record<string, unknown>
 
 export const trackEvent = (eventName: string, properties?: EventProperties) => {
   try {

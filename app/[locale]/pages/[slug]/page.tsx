@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
@@ -28,9 +29,10 @@ import QuizBlock from '@/components/ai-blocks/QuizBlock';
 import TimelineBlock from '@/components/ai-blocks/TimelineBlock';
 import MermaidBlock from '@/components/ai-blocks/MermaidBlock';
 import GraphBlock from '@/components/ai-blocks/GraphBlock';
-import { TextWithSpans } from '@/components/TextWithSpans';
+import { TextWithSpans, type InlineSpan } from '@/components/TextWithSpans';
 import {
   DndContext,
+  type DragEndEvent,
   closestCenter,
   PointerSensor,
   KeyboardSensor,
@@ -83,7 +85,7 @@ type BlockItem = {
   page_id: string;
   logical_id: string;
   type: BlockType;
-  content: Record<string, any>;
+  content: Record<string, unknown>;
   position: number;
   version: number;
   is_deleted?: boolean;
@@ -401,7 +403,7 @@ export default function PageView() {
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, Record<string, any>>>({});
+  const [drafts, setDrafts] = useState<Record<string, Record<string, unknown>>>({});
   const [addIndex, setAddIndex] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -501,7 +503,7 @@ export default function PageView() {
   ]);
   const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
-  const getAuthToken = async () => {
+  const getAuthToken = useCallback(async () => {
     if (session?.access_token) return session.access_token;
     const { data } = await supabase.auth.getSession();
     if (data.session?.access_token) {
@@ -509,17 +511,20 @@ export default function PageView() {
     }
     const refreshed = await supabase.auth.refreshSession();
     return refreshed.data.session?.access_token || null;
-  };
+  }, [session?.access_token, supabase]);
 
-  const handleUnauthorized = async (response: Response) => {
-    if (response.status === 401) {
-      await signOut();
-      return true;
-    }
-    return false;
-  };
+  const handleUnauthorized = useCallback(
+    async (response: Response) => {
+      if (response.status === 401) {
+        await signOut();
+        return true;
+      }
+      return false;
+    },
+    [signOut]
+  );
 
-  const loadPage = async () => {
+  const loadPage = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -589,9 +594,9 @@ export default function PageView() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [handleUnauthorized, slug, t, token]);
 
-  const loadBlocks = async (pageId: string) => {
+  const loadBlocks = useCallback(async (pageId: string) => {
     if (!token) return;
     try {
       const response = await fetch(`/api/blocks?pageId=${pageId}`, {
@@ -606,9 +611,9 @@ export default function PageView() {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('blocks.errors.load'));
     }
-  };
+  }, [handleUnauthorized, t, token]);
 
-  const loadAttachments = async (pageId: string, includeParsed = false) => {
+  const loadAttachments = useCallback(async (pageId: string, includeParsed = false) => {
     if (!token) return;
     try {
       setAttachmentsError(null);
@@ -629,11 +634,11 @@ export default function PageView() {
       setAttachments([]);
       setAttachmentsError(t('blocks.attachments.listFailed'));
     }
-  };
+  }, [handleUnauthorized, t, token]);
 
   useEffect(() => {
     loadPage();
-  }, [slug, token]);
+  }, [loadPage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -661,7 +666,7 @@ export default function PageView() {
     setIsBlocksLoading(true);
     loadBlocks(page.id).finally(() => setIsBlocksLoading(false));
     loadAttachments(page.id);
-  }, [page?.id, token]);
+  }, [loadAttachments, loadBlocks, page, token]);
 
   useEffect(() => {
     if (!page?.id) return;
@@ -675,26 +680,13 @@ export default function PageView() {
       }).catch(() => {});
     };
     run();
-  }, [page?.id]);
-
-  useEffect(() => {
-    if (!page) return;
-    const isUntitled =
-      isUntitledTitle(page.title, t('pages.untitledDisplay')) ||
-      page.title === t('pages.newPageTitle');
-    if (!isUntitled) return;
-    if (blocks.length === 0) return;
-    const derived = deriveTitleFromBlocks(blocks);
-    if (!derived) return;
-    if (derived === title) return;
-    handleRename(derived);
-  }, [blocks, page?.id]);
+  }, [getAuthToken, page?.id, token]);
 
   useEffect(() => {
     if (!page || !aiOpen) return;
     if (!token) return;
     loadAttachments(page.id, true);
-  }, [aiOpen, page?.id, token]);
+  }, [aiOpen, loadAttachments, page, token]);
 
   useEffect(() => {
     if (!canUseAi) {
@@ -889,7 +881,7 @@ export default function PageView() {
     redoRef.current = [];
   };
 
-  const handleRename = async (nextTitle?: string) => {
+  const handleRename = useCallback(async (nextTitle?: string) => {
     if (!page || !isOwner) return;
     const trimmed = (nextTitle ?? title).trim();
     if (!trimmed) return;
@@ -933,7 +925,20 @@ export default function PageView() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [getAuthToken, handleUnauthorized, isOwner, originalTitle, page, t, title]);
+
+  useEffect(() => {
+    if (!page) return;
+    const isUntitled =
+      isUntitledTitle(page.title, t('pages.untitledDisplay')) ||
+      page.title === t('pages.newPageTitle');
+    if (!isUntitled) return;
+    if (blocks.length === 0) return;
+    const derived = deriveTitleFromBlocks(blocks);
+    if (!derived) return;
+    if (derived === title) return;
+    handleRename(derived);
+  }, [blocks, handleRename, page, t, title]);
 
   const handleDelete = async () => {
     if (!page || !isOwner) return;
@@ -1461,12 +1466,17 @@ export default function PageView() {
     const attachmentId = block.content?.attachment_id as string | undefined;
     const attachment = attachmentId ? attachmentsMap.get(attachmentId) : null;
     const hasAccess = !!attachment;
-    const displayName =
-      block.content?.display_name ||
-      attachment?.filename ||
-      t('blocks.attachments.fallbackName');
-    const fileType = (block.content?.file_type || attachment?.file_type || '').toString();
-    const fileSize = block.content?.file_size || attachment?.file_size || 0;
+    const displayName = String(
+      (block.content as { display_name?: unknown })?.display_name ||
+        attachment?.filename ||
+        t('blocks.attachments.fallbackName')
+    );
+    const fileType = String(
+      (block.content as { file_type?: unknown })?.file_type || attachment?.file_type || ''
+    );
+    const fileSize = Number(
+      (block.content as { file_size?: unknown })?.file_size || attachment?.file_size || 0
+    );
     const showDownloadError = downloadErrorId === attachmentId;
 
     return (
@@ -1503,7 +1513,7 @@ export default function PageView() {
     );
   };
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     if (!editMode) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -1571,8 +1581,13 @@ export default function PageView() {
               : level === 4
               ? 'text-lg sm:text-xl lg:text-2xl'
               : 'text-base sm:text-lg lg:text-xl';
-          const textContent = block.content.text || t('blocks.placeholders.heading');
-          const hasSpans = Array.isArray(block.content.spans) && block.content.spans.length > 0;
+          const textContent = String(
+            (block.content as { text?: unknown }).text || t('blocks.placeholders.heading')
+          );
+          const spans = Array.isArray((block.content as { spans?: unknown }).spans)
+            ? ((block.content as { spans: InlineSpan[] }).spans || [])
+            : [];
+          const hasSpans = spans.length > 0;
           const headingColorToken = getBlockColorToken(block);
           const headingColorClass = headingColorToken ? `token-${headingColorToken}` : '';
           const inner = (
@@ -1581,13 +1596,15 @@ export default function PageView() {
                 className={`font-semibold ${headingColorToken ? headingColorClass : 'text-foreground'} ${headingSize}`}
               >
                 {hasSpans ? (
-                  <TextWithSpans text={textContent} spans={block.content.spans} />
+                  <TextWithSpans text={textContent} spans={spans} />
                 ) : (
                   textContent
                 )}
               </div>
-              {block.content.subtitle ? (
-                <div className="text-sm text-muted">{block.content.subtitle}</div>
+              {(block.content as { subtitle?: unknown }).subtitle ? (
+                <div className="text-sm text-muted">
+                  {String((block.content as { subtitle?: unknown }).subtitle)}
+                </div>
               ) : null}
             </div>
           );
@@ -1595,9 +1612,9 @@ export default function PageView() {
         }
       case 'paragraph':
         {
-          const size = block.content.size || 'md';
-          const tone = block.content.tone || 'normal';
-          const align = block.content.align || 'left';
+          const size = (block.content as { size?: unknown }).size || 'md';
+          const tone = (block.content as { tone?: unknown }).tone || 'normal';
+          const align = (block.content as { align?: unknown }).align || 'left';
           const sizeClass =
             size === 'xs'
               ? 'text-xs sm:text-sm'
@@ -1613,41 +1630,55 @@ export default function PageView() {
               ? 'text-foreground'
               : 'text-foreground/90';
           const alignClass = align === 'center' ? 'text-center' : 'text-left';
-          const textContent = block.content.text || t('blocks.placeholders.paragraph');
-          const hasSpans = Array.isArray(block.content.spans) && block.content.spans.length > 0;
+          const textContent = String(
+            (block.content as { text?: unknown }).text || t('blocks.placeholders.paragraph')
+          );
+          const spans = Array.isArray((block.content as { spans?: unknown }).spans)
+            ? ((block.content as { spans: InlineSpan[] }).spans || [])
+            : [];
+          const hasSpans = spans.length > 0;
           const paragraphColorToken = getBlockColorToken(block);
           const paragraphColorClass = paragraphColorToken ? `token-${paragraphColorToken}` : '';
           const paragraphInner = (
             <p
               className={`leading-relaxed ${sizeClass} ${paragraphColorToken ? paragraphColorClass : toneClass} ${alignClass}`}
             >
-              {hasSpans ? (
-                <TextWithSpans text={textContent} spans={block.content.spans} />
-              ) : (
-                textContent
-              )}
+            {hasSpans ? (
+              <TextWithSpans text={textContent} spans={spans} />
+            ) : (
+              textContent
+            )}
             </p>
           );
           return paragraphInner;
         }
       case 'quote':
-        return (
+        {
+          const authorValue = (block.content as { author?: unknown }).author;
+          const sourceValue = (block.content as { source?: unknown }).source;
+          const hasMeta = Boolean(authorValue || sourceValue);
+          const authorText = authorValue ? String(authorValue) : t('blocks.placeholders.quoteAuthor');
+          const sourceText = sourceValue ? String(sourceValue) : '';
+          return (
           <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
             <blockquote className="text-foreground/90 italic">
-              {block.content.text || t('blocks.placeholders.quote')}
+              {String(
+                (block.content as { text?: unknown }).text || t('blocks.placeholders.quote')
+              )}
             </blockquote>
-            {(block.content.author || block.content.source) && (
+            {hasMeta && (
               <div className="mt-2 text-xs text-muted">
-                {block.content.author ? block.content.author : t('blocks.placeholders.quoteAuthor')}
-                {block.content.source ? ` • ${block.content.source}` : ''}
+                {authorText}
+                {sourceText ? ` • ${sourceText}` : ''}
               </div>
             )}
           </div>
-        );
+          );
+        }
       case 'callout':
         {
           const colorToken = getBlockColorToken(block);
-          const variant = block.content.variant || 'info';
+          const variant = (block.content as { variant?: unknown }).variant || 'info';
           const variantClass = colorToken
             ? `callout-token-${colorToken}`
             : variant === 'warning'
@@ -1661,17 +1692,24 @@ export default function PageView() {
             : variant === 'summary'
             ? 'border-purple-400/40 bg-purple-500/10'
             : 'border-[color:var(--border)] bg-[color:var(--surface-2)]';
-          const textContent = block.content.text || t('blocks.placeholders.callout');
-          const hasSpans = Array.isArray(block.content.spans) && block.content.spans.length > 0;
+          const textContent = String(
+            (block.content as { text?: unknown }).text || t('blocks.placeholders.callout')
+          );
+          const spans = Array.isArray((block.content as { spans?: unknown }).spans)
+            ? ((block.content as { spans: InlineSpan[] }).spans || [])
+            : [];
+          const hasSpans = spans.length > 0;
+          const titleValue = (block.content as { title?: unknown }).title;
+          const titleText = titleValue ? String(titleValue) : '';
           return (
             <div className={`rounded-xl border p-3 text-sm ${colorToken ? '' : 'text-foreground'} ${variantClass}`}>
-              {block.content.title ? (
+              {titleText ? (
                 <div className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                  {block.content.title}
+                  {titleText}
                 </div>
               ) : null}
               {hasSpans ? (
-                <TextWithSpans text={textContent} spans={block.content.spans} />
+                <TextWithSpans text={textContent} spans={spans} />
               ) : (
                 textContent
               )}
@@ -1685,10 +1723,14 @@ export default function PageView() {
               <span className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-300/60" />
               <span className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
-              <span className="ml-2 text-xs text-muted">{block.content.language || 'plaintext'}</span>
+              <span className="ml-2 text-xs text-muted">
+                {String((block.content as { language?: unknown }).language || 'plaintext')}
+              </span>
             </div>
             <pre className="p-4 text-sm font-mono text-cyan-100/90 overflow-x-auto">
-              {block.content.code || t('blocks.placeholders.code')}
+              {String(
+                (block.content as { code?: unknown }).code || t('blocks.placeholders.code')
+              )}
             </pre>
           </div>
         );
@@ -1705,13 +1747,18 @@ export default function PageView() {
               : 'mx-auto';
           return block.content.url ? (
             <div className={`space-y-2 ${alignClass} ${sizeClass}`}>
-              <img
-                src={block.content.url}
-                alt={block.content.alt || ''}
-                className="w-full rounded-2xl border border-[color:var(--border)]"
+              <Image
+                src={String(block.content.url)}
+                alt={String(block.content.alt || '')}
+                width={1200}
+                height={800}
+                unoptimized
+                className="w-full h-auto rounded-2xl border border-[color:var(--border)]"
               />
-              {block.content.caption ? (
-                <div className="text-xs text-muted text-center">{block.content.caption}</div>
+              {(block.content as { caption?: unknown }).caption ? (
+                <div className="text-xs text-muted text-center">
+                  {String((block.content as { caption?: unknown }).caption)}
+                </div>
               ) : null}
             </div>
           ) : (
@@ -1797,25 +1844,46 @@ export default function PageView() {
         );
       }
       case 'table':
-        return (
-          <TableBlock
-            columns={block.content?.columns}
-            rows={block.content?.rows}
-            caption={block.content?.caption}
-          />
-        );
+        {
+          const tableContent = block.content as {
+            columns?: string[];
+            rows?: string[][];
+            caption?: string;
+          };
+          return (
+            <TableBlock
+              columns={tableContent.columns}
+              rows={tableContent.rows}
+              caption={tableContent.caption}
+            />
+          );
+        }
       case 'flashcard':
-        return (
-          <FlashcardBlock
-            front={block.content?.front}
-            back={block.content?.back}
-            cards={block.content?.cards}
-          />
-        );
+        {
+          const flashcardContent = block.content as {
+            front?: string;
+            back?: string;
+            cards?: { front?: string; back?: string; explanation?: string }[];
+          };
+          return (
+            <FlashcardBlock
+              front={flashcardContent.front}
+              back={flashcardContent.back}
+              cards={flashcardContent.cards}
+            />
+          );
+        }
       case 'flashcard_deck':
-        return <FlashcardBlock cards={block.content?.cards} />;
+        {
+          const deckContent = block.content as {
+            cards?: { front?: string; back?: string; explanation?: string }[];
+          };
+          return <FlashcardBlock cards={deckContent.cards} />;
+        }
       case 'faq': {
-        const items = Array.isArray(block.content.items) ? block.content.items : [];
+        const items = Array.isArray((block.content as { items?: unknown }).items)
+          ? ((block.content as { items: { question?: string; answer?: string }[] }).items || [])
+          : [];
         if (items.length === 0) {
           return <div className="text-sm text-muted">{t('blocks.placeholders.faq')}</div>;
         }
@@ -1840,11 +1908,15 @@ export default function PageView() {
       case 'summary':
         return (
           <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-foreground">
-            {block.content.text || t('blocks.placeholders.summary')}
+            {String(
+              (block.content as { text?: unknown }).text || t('blocks.placeholders.summary')
+            )}
           </div>
         );
       case 'takeaways': {
-        const items = Array.isArray(block.content.items) ? block.content.items : [];
+        const items = Array.isArray((block.content as { items?: unknown }).items)
+          ? ((block.content as { items: string[] }).items || [])
+          : [];
         if (items.length === 0) {
           return <div className="text-sm text-muted">{t('blocks.placeholders.takeaways')}</div>;
         }
@@ -1860,20 +1932,41 @@ export default function PageView() {
         );
       }
       case 'quiz':
-        return (
-          <QuizBlock
-            question={block.content?.question}
-            options={block.content?.options}
-            correctIndex={block.content?.correctIndex}
-            explanation={block.content?.explanation}
-            answer={block.content?.answer}
-            questions={block.content?.questions}
-          />
-        );
+        {
+          const quizContent = block.content as {
+            question?: string;
+            options?: string[];
+            correctIndex?: number;
+            explanation?: string;
+            answer?: string;
+            questions?: {
+              question?: string;
+              options?: string[];
+              correctIndex?: number;
+              explanation?: string;
+              answer?: string;
+            }[];
+          };
+          return (
+            <QuizBlock
+              question={quizContent.question}
+              options={quizContent.options}
+              correctIndex={quizContent.correctIndex}
+              explanation={quizContent.explanation}
+              answer={quizContent.answer}
+              questions={quizContent.questions}
+            />
+          );
+        }
       case 'timeline':
-        return <TimelineBlock items={block.content?.items} />;
+        {
+          const timelineContent = block.content as { items?: { title?: string; description?: string; order?: string; date?: string }[] };
+          return <TimelineBlock items={timelineContent.items} />;
+        }
       case 'steps': {
-        const steps = Array.isArray(block.content.steps) ? block.content.steps : [];
+        const steps = Array.isArray((block.content as { steps?: unknown }).steps)
+          ? ((block.content as { steps: { title?: string; description?: string }[] }).steps || [])
+          : [];
         if (steps.length === 0) {
           return <div className="text-sm text-muted">{t('blocks.placeholders.steps')}</div>;
         }
@@ -1898,15 +1991,25 @@ export default function PageView() {
         );
       }
       case 'mermaid':
-        return <MermaidBlock code={block.content?.code} />;
+        {
+          const mermaidContent = block.content as { code?: string };
+          return <MermaidBlock code={mermaidContent.code} />;
+        }
       case 'graph':
-        return <GraphBlock nodes={block.content?.nodes} edges={block.content?.edges} />;
+        {
+          const graphContent = block.content as {
+            nodes?: { id: string; label?: string }[];
+            edges?: { from: string; to: string; label?: string }[];
+          };
+          return <GraphBlock nodes={graphContent.nodes} edges={graphContent.edges} />;
+        }
       case 'attachment':
         return renderAttachmentBlock(block);
       case 'divider':
         {
-          const style = block.content?.style || 'line';
-          const label = block.content?.label;
+          const style = (block.content as { style?: unknown })?.style || 'line';
+          const labelValue = (block.content as { label?: unknown })?.label;
+          const label = labelValue ? String(labelValue) : '';
           if (style === 'space') {
             return <div className="h-6" />;
           }
@@ -1936,7 +2039,7 @@ export default function PageView() {
 
   const renderEditor = (block: BlockItem) => {
     const draft = drafts[block.logical_id] || block.content;
-    const setDraft = (next: Record<string, any>) => {
+    const setDraft = (next: Record<string, unknown>) => {
       setDrafts((prev) => ({ ...prev, [block.logical_id]: next }));
     };
     const moveItem = <T,>(items: T[], from: number, to: number) => {
@@ -1948,14 +2051,16 @@ export default function PageView() {
 
     switch (block.type) {
       case 'heading':
-        return (
+        {
+          const headingDraft = draft as { level?: number; text?: string; subtitle?: string };
+          return (
           <div className="space-y-2">
             <div className="text-xs uppercase tracking-[0.2em] text-muted">
               {t('blocks.editor.headingLevel')}
             </div>
             <select
-              value={draft.level || 1}
-              onChange={(event) => setDraft({ ...draft, level: Number(event.target.value) })}
+              value={headingDraft.level ?? 1}
+              onChange={(event) => setDraft({ ...headingDraft, level: Number(event.target.value) })}
               className="input-field appearance-none rounded-xl px-3 py-1.5 text-sm shadow-inner"
             >
               <option value={1}>{t('blocks.labels.headingLevel', { level: 1 })}</option>
@@ -1965,21 +2070,24 @@ export default function PageView() {
               <option value={5}>{t('blocks.labels.headingLevel', { level: 5 })}</option>
             </select>
             <input
-              value={draft.text || ''}
-              onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+              value={headingDraft.text ?? ''}
+              onChange={(event) => setDraft({ ...headingDraft, text: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2"
               placeholder={t('blocks.placeholders.heading')}
             />
             <input
-              value={draft.subtitle || ''}
-              onChange={(event) => setDraft({ ...draft, subtitle: event.target.value })}
+              value={headingDraft.subtitle ?? ''}
+              onChange={(event) => setDraft({ ...headingDraft, subtitle: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.subtitle')}
             />
           </div>
         );
+        }
       case 'paragraph':
-        return (
+        {
+          const paragraphDraft = draft as { size?: string; tone?: string; align?: string; text?: string };
+          return (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-3">
               <div>
@@ -1987,8 +2095,8 @@ export default function PageView() {
                   {t('blocks.paragraph.sizeLabel')}
                 </div>
                 <select
-                  value={draft.size || 'md'}
-                  onChange={(event) => setDraft({ ...draft, size: event.target.value })}
+                  value={paragraphDraft.size ?? 'md'}
+                  onChange={(event) => setDraft({ ...paragraphDraft, size: event.target.value })}
                   className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="xs">{t('blocks.paragraph.size.xs')}</option>
@@ -2002,8 +2110,8 @@ export default function PageView() {
                   {t('blocks.paragraph.toneLabel')}
                 </div>
                 <select
-                  value={draft.tone || 'normal'}
-                  onChange={(event) => setDraft({ ...draft, tone: event.target.value })}
+                  value={paragraphDraft.tone ?? 'normal'}
+                  onChange={(event) => setDraft({ ...paragraphDraft, tone: event.target.value })}
                   className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="normal">{t('blocks.paragraph.tone.normal')}</option>
@@ -2016,8 +2124,8 @@ export default function PageView() {
                   {t('blocks.paragraph.alignLabel')}
                 </div>
                 <select
-                  value={draft.align || 'left'}
-                  onChange={(event) => setDraft({ ...draft, align: event.target.value })}
+                  value={paragraphDraft.align ?? 'left'}
+                  onChange={(event) => setDraft({ ...paragraphDraft, align: event.target.value })}
                   className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="left">{t('blocks.paragraph.align.left')}</option>
@@ -2026,42 +2134,48 @@ export default function PageView() {
               </div>
             </div>
             <textarea
-              value={draft.text || ''}
-              onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+              value={paragraphDraft.text ?? ''}
+              onChange={(event) => setDraft({ ...paragraphDraft, text: event.target.value })}
               className="input-field w-full min-h-[80px] rounded-xl px-3 py-2"
               placeholder={t('blocks.placeholders.paragraph')}
             />
           </div>
         );
+        }
       case 'quote':
-        return (
+        {
+          const quoteDraft = draft as { text?: string; author?: string; source?: string };
+          return (
           <div className="space-y-2">
             <textarea
-              value={draft.text || ''}
-              onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+              value={quoteDraft.text ?? ''}
+              onChange={(event) => setDraft({ ...quoteDraft, text: event.target.value })}
               className="input-field w-full min-h-[80px] rounded-xl px-3 py-2"
               placeholder={t('blocks.placeholders.quote')}
             />
             <input
-              value={draft.author || ''}
-              onChange={(event) => setDraft({ ...draft, author: event.target.value })}
+              value={quoteDraft.author ?? ''}
+              onChange={(event) => setDraft({ ...quoteDraft, author: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.quoteAuthor')}
             />
             <input
-              value={draft.source || ''}
-              onChange={(event) => setDraft({ ...draft, source: event.target.value })}
+              value={quoteDraft.source ?? ''}
+              onChange={(event) => setDraft({ ...quoteDraft, source: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.quoteSource')}
             />
           </div>
         );
+        }
       case 'callout':
-        return (
+        {
+          const calloutDraft = draft as { variant?: string; title?: string; text?: string };
+          return (
           <div className="space-y-2">
             <select
-              value={draft.variant || 'info'}
-              onChange={(event) => setDraft({ ...draft, variant: event.target.value })}
+              value={calloutDraft.variant ?? 'info'}
+              onChange={(event) => setDraft({ ...calloutDraft, variant: event.target.value })}
               className="input-field appearance-none rounded-xl px-3 py-1.5 text-sm shadow-inner"
             >
               <option value="info">{t('blocks.callout.info')}</option>
@@ -2073,21 +2187,23 @@ export default function PageView() {
               <option value="summary">{t('blocks.callout.summary')}</option>
             </select>
             <input
-              value={draft.title || ''}
-              onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+              value={calloutDraft.title ?? ''}
+              onChange={(event) => setDraft({ ...calloutDraft, title: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.calloutTitle')}
             />
             <textarea
-              value={draft.text || ''}
-              onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+              value={calloutDraft.text ?? ''}
+              onChange={(event) => setDraft({ ...calloutDraft, text: event.target.value })}
               className="input-field w-full min-h-[80px] rounded-xl px-3 py-2"
               placeholder={t('blocks.placeholders.callout')}
             />
           </div>
         );
+        }
       case 'list': {
-        const items = Array.isArray(draft.items) ? draft.items : [];
+        const listDraft = draft as { ordered?: boolean; nested?: boolean; items?: string[] };
+        const items = Array.isArray(listDraft.items) ? listDraft.items : [];
         const normalizedItems = items.length > 0 ? items : [''];
         return (
           <div className="space-y-3">
@@ -2095,8 +2211,8 @@ export default function PageView() {
               <label className="flex items-center gap-2 text-xs text-muted">
                 <input
                   type="checkbox"
-                  checked={!!draft.ordered}
-                  onChange={(event) => setDraft({ ...draft, ordered: event.target.checked })}
+                  checked={!!listDraft.ordered}
+                  onChange={(event) => setDraft({ ...listDraft, ordered: event.target.checked })}
                   className="h-3.5 w-3.5 rounded border-[color:var(--border)] text-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                 />
                 {t('blocks.list.ordered')}
@@ -2104,14 +2220,14 @@ export default function PageView() {
               <label className="flex items-center gap-2 text-xs text-muted">
                 <input
                   type="checkbox"
-                  checked={!!draft.nested}
-                  onChange={(event) => setDraft({ ...draft, nested: event.target.checked })}
+                  checked={!!listDraft.nested}
+                  onChange={(event) => setDraft({ ...listDraft, nested: event.target.checked })}
                   className="h-3.5 w-3.5 rounded border-[color:var(--border)] text-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                 />
                 {t('blocks.list.nested')}
               </label>
             </div>
-            {draft.nested && (
+            {listDraft.nested && (
               <div className="text-xs text-muted">{t('blocks.list.nestedHint')}</div>
             )}
             <div className="space-y-2">
@@ -2179,7 +2295,8 @@ export default function PageView() {
         );
       }
       case 'checklist': {
-        const items = Array.isArray(draft.items) ? draft.items : [];
+        const checklistDraft = draft as { items?: Array<{ text?: string; checked?: boolean }> };
+        const items = Array.isArray(checklistDraft.items) ? checklistDraft.items : [];
         const normalizedItems = items.length > 0 ? items : [{ text: '', checked: false }];
         return (
           <div className="space-y-3">
@@ -2192,7 +2309,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const next = normalizedItems.map((entry) => ({ ...entry }));
                       next[idx].checked = event.target.checked;
-                      setDraft({ ...draft, items: next });
+                      setDraft({ ...checklistDraft, items: next });
                     }}
                     className="h-4 w-4 rounded border-[color:var(--border)] text-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                   />
@@ -2201,7 +2318,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const next = normalizedItems.map((entry) => ({ ...entry }));
                       next[idx].text = event.target.value;
-                      setDraft({ ...draft, items: next });
+                      setDraft({ ...checklistDraft, items: next });
                     }}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
                     placeholder={t('blocks.placeholders.checklistItem')}
@@ -2211,7 +2328,7 @@ export default function PageView() {
                       type="button"
                       onClick={() => {
                         if (idx === 0) return;
-                        setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx - 1) });
+                        setDraft({ ...checklistDraft, items: moveItem(normalizedItems, idx, idx - 1) });
                       }}
                       className="text-xs text-muted"
                       aria-label={t('blocks.editor.moveUp')}
@@ -2222,7 +2339,7 @@ export default function PageView() {
                       type="button"
                       onClick={() => {
                         if (idx === normalizedItems.length - 1) return;
-                        setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx + 1) });
+                        setDraft({ ...checklistDraft, items: moveItem(normalizedItems, idx, idx + 1) });
                       }}
                       className="text-xs text-muted"
                       aria-label={t('blocks.editor.moveDown')}
@@ -2234,7 +2351,7 @@ export default function PageView() {
                         type="button"
                         onClick={() =>
                           setDraft({
-                            ...draft,
+                            ...checklistDraft,
                             items: normalizedItems.filter((_item, index) => index !== idx)
                           })
                         }
@@ -2250,7 +2367,7 @@ export default function PageView() {
             <button
               type="button"
               onClick={() =>
-                setDraft({ ...draft, items: [...normalizedItems, { text: '', checked: false }] })
+                setDraft({ ...checklistDraft, items: [...normalizedItems, { text: '', checked: false }] })
               }
               className="btn-ghost inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
             >
@@ -2260,7 +2377,8 @@ export default function PageView() {
         );
       }
       case 'definitions': {
-        const items = Array.isArray(draft.items) ? draft.items : [];
+        const definitionsDraft = draft as { items?: Array<{ term?: string; definition?: string }> };
+        const items = Array.isArray(definitionsDraft.items) ? definitionsDraft.items : [];
         const normalizedItems = items.length > 0 ? items : [{ term: '', definition: '' }];
         return (
           <div className="space-y-3">
@@ -2274,7 +2392,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === 0) return;
-                          setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx - 1) });
+                          setDraft({ ...definitionsDraft, items: moveItem(normalizedItems, idx, idx - 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2284,7 +2402,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === normalizedItems.length - 1) return;
-                          setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx + 1) });
+                          setDraft({ ...definitionsDraft, items: moveItem(normalizedItems, idx, idx + 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2295,7 +2413,7 @@ export default function PageView() {
                           type="button"
                           onClick={() =>
                             setDraft({
-                              ...draft,
+                              ...definitionsDraft,
                               items: normalizedItems.filter((_item, index) => index !== idx)
                             })
                           }
@@ -2311,7 +2429,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const next = normalizedItems.map((entry) => ({ ...entry }));
                       next[idx].term = event.target.value;
-                      setDraft({ ...draft, items: next });
+                      setDraft({ ...definitionsDraft, items: next });
                     }}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
                     placeholder={t('blocks.placeholders.definitionTerm')}
@@ -2321,7 +2439,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const next = normalizedItems.map((entry) => ({ ...entry }));
                       next[idx].definition = event.target.value;
-                      setDraft({ ...draft, items: next });
+                      setDraft({ ...definitionsDraft, items: next });
                     }}
                     className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
                     placeholder={t('blocks.placeholders.definition')}
@@ -2331,7 +2449,12 @@ export default function PageView() {
             </div>
             <button
               type="button"
-              onClick={() => setDraft({ ...draft, items: [...normalizedItems, { term: '', definition: '' }] })}
+              onClick={() =>
+                setDraft({
+                  ...definitionsDraft,
+                  items: [...normalizedItems, { term: '', definition: '' }]
+                })
+              }
               className="btn-ghost inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
             >
               {t('blocks.editor.addItem')}
@@ -2339,50 +2462,59 @@ export default function PageView() {
           </div>
         );
       }
-      case 'code':
+      case 'code': {
+        const codeDraft = draft as { language?: string; code?: string };
         return (
           <div className="space-y-2">
             <input
-              value={draft.language || ''}
+              value={codeDraft.language ?? ''}
               onChange={(event) =>
                 setDrafts((prev) => ({
                   ...prev,
-                  [block.logical_id]: { ...draft, language: event.target.value }
+                  [block.logical_id]: { ...codeDraft, language: event.target.value }
                 }))
               }
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.codeLang')}
             />
             <textarea
-              value={draft.code || ''}
+              value={codeDraft.code ?? ''}
               onChange={(event) =>
                 setDrafts((prev) => ({
                   ...prev,
-                  [block.logical_id]: { ...draft, code: event.target.value }
+                  [block.logical_id]: { ...codeDraft, code: event.target.value }
                 }))
               }
               className="input-field w-full min-h-[120px] rounded-xl px-3 py-2 font-mono text-sm text-cyan-100"
             />
           </div>
         );
-      case 'image':
+      }
+      case 'image': {
+        const imageDraft = draft as {
+          url?: string;
+          alt?: string;
+          caption?: string;
+          size?: string;
+          align?: string;
+        };
         return (
           <div className="space-y-2">
             <input
-              value={draft.url || ''}
-              onChange={(event) => setDraft({ ...draft, url: event.target.value })}
+              value={imageDraft.url ?? ''}
+              onChange={(event) => setDraft({ ...imageDraft, url: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.imageUrl')}
             />
             <input
-              value={draft.alt || ''}
-              onChange={(event) => setDraft({ ...draft, alt: event.target.value })}
+              value={imageDraft.alt ?? ''}
+              onChange={(event) => setDraft({ ...imageDraft, alt: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.imageAlt')}
             />
             <input
-              value={draft.caption || ''}
-              onChange={(event) => setDraft({ ...draft, caption: event.target.value })}
+              value={imageDraft.caption ?? ''}
+              onChange={(event) => setDraft({ ...imageDraft, caption: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.imageCaption')}
             />
@@ -2392,8 +2524,8 @@ export default function PageView() {
                   {t('blocks.image.sizeLabel')}
                 </div>
                 <select
-                  value={draft.size || 'md'}
-                  onChange={(event) => setDraft({ ...draft, size: event.target.value })}
+                  value={imageDraft.size ?? 'md'}
+                  onChange={(event) => setDraft({ ...imageDraft, size: event.target.value })}
                   className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="sm">{t('blocks.image.size.sm')}</option>
@@ -2406,8 +2538,8 @@ export default function PageView() {
                   {t('blocks.image.alignLabel')}
                 </div>
                 <select
-                  value={draft.align || 'center'}
-                  onChange={(event) => setDraft({ ...draft, align: event.target.value })}
+                  value={imageDraft.align ?? 'center'}
+                  onChange={(event) => setDraft({ ...imageDraft, align: event.target.value })}
                   className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="left">{t('blocks.image.align.left')}</option>
@@ -2418,20 +2550,22 @@ export default function PageView() {
             </div>
           </div>
         );
+      }
       case 'attachment':
         return renderAttachmentBlock(block);
-      case 'divider':
+      case 'divider': {
+        const dividerDraft = draft as { label?: string; style?: string };
         return (
           <div className="space-y-2">
             <input
-              value={draft.label || ''}
-              onChange={(event) => setDraft({ ...draft, label: event.target.value })}
+              value={dividerDraft.label ?? ''}
+              onChange={(event) => setDraft({ ...dividerDraft, label: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.dividerLabel')}
             />
             <select
-              value={draft.style || 'line'}
-              onChange={(event) => setDraft({ ...draft, style: event.target.value })}
+              value={dividerDraft.style ?? 'line'}
+              onChange={(event) => setDraft({ ...dividerDraft, style: event.target.value })}
               className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
             >
               <option value="line">{t('blocks.divider.style.line')}</option>
@@ -2440,9 +2574,11 @@ export default function PageView() {
             </select>
           </div>
         );
+      }
       case 'table': {
-        const columns = Array.isArray(draft.columns) ? draft.columns : [];
-        const rows = Array.isArray(draft.rows) ? draft.rows : [];
+        const tableDraft = draft as { columns?: string[]; rows?: string[][]; caption?: string };
+        const columns = Array.isArray(tableDraft.columns) ? tableDraft.columns : [];
+        const rows = Array.isArray(tableDraft.rows) ? tableDraft.rows : [];
         const columnCount = columns.length || (rows[0]?.length ?? 0);
         const normalizedColumns =
           columnCount > 0
@@ -2461,8 +2597,8 @@ export default function PageView() {
         return (
           <div className="space-y-4">
             <input
-              value={draft.caption || ''}
-              onChange={(event) => setDraft({ ...draft, caption: event.target.value })}
+              value={tableDraft.caption ?? ''}
+              onChange={(event) => setDraft({ ...tableDraft, caption: event.target.value })}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
               placeholder={t('blocks.placeholders.tableCaption')}
             />
@@ -2478,7 +2614,7 @@ export default function PageView() {
                     t('blocks.labels.column', { index: normalizedColumns.length + 1 })
                   ];
                   const nextRows = normalizedRows.map((row) => [...row, '']);
-                  setDraft({ ...draft, columns: nextColumns, rows: nextRows });
+                  setDraft({ ...tableDraft, columns: nextColumns, rows: nextRows });
                 }}
                 className="btn-ghost rounded-full px-3 py-1 text-xs"
               >
@@ -2493,7 +2629,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextColumns = [...normalizedColumns];
                       nextColumns[colIndex] = event.target.value;
-                      setDraft({ ...draft, columns: nextColumns, rows: normalizedRows });
+                      setDraft({ ...tableDraft, columns: nextColumns, rows: normalizedRows });
                     }}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
                   />
@@ -2505,7 +2641,7 @@ export default function PageView() {
                         const nextRows = normalizedRows.map((row) =>
                           row.filter((_cell, idx) => idx !== colIndex)
                         );
-                        setDraft({ ...draft, columns: nextColumns, rows: nextRows });
+                        setDraft({ ...tableDraft, columns: nextColumns, rows: nextRows });
                       }}
                       className="text-xs text-red-400"
                     >
@@ -2524,7 +2660,7 @@ export default function PageView() {
                 type="button"
                 onClick={() => {
                   const nextRows = [...normalizedRows, Array.from({ length: columnCount || 1 }, () => '')];
-                  setDraft({ ...draft, columns: normalizedColumns, rows: nextRows });
+                  setDraft({ ...tableDraft, columns: normalizedColumns, rows: nextRows });
                 }}
                 className="btn-ghost rounded-full px-3 py-1 text-xs"
               >
@@ -2541,7 +2677,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           const nextRows = normalizedRows.filter((_r, idx) => idx !== rowIndex);
-                          setDraft({ ...draft, columns: normalizedColumns, rows: nextRows });
+                          setDraft({ ...tableDraft, columns: normalizedColumns, rows: nextRows });
                         }}
                         className="text-red-400"
                       >
@@ -2557,7 +2693,7 @@ export default function PageView() {
                         onChange={(event) => {
                           const nextRows = normalizedRows.map((r) => [...r]);
                           nextRows[rowIndex][cellIndex] = event.target.value;
-                          setDraft({ ...draft, columns: normalizedColumns, rows: nextRows });
+                          setDraft({ ...tableDraft, columns: normalizedColumns, rows: nextRows });
                         }}
                         placeholder={
                           normalizedColumns[cellIndex] ||
@@ -2574,7 +2710,10 @@ export default function PageView() {
         );
       }
       case 'timeline': {
-        const items = Array.isArray(draft.items) ? draft.items : [];
+        const timelineDraft = draft as {
+          items?: Array<{ title?: string; description?: string; order?: string | number }>;
+        };
+        const items = Array.isArray(timelineDraft.items) ? timelineDraft.items : [];
         const normalizedItems =
           items.length > 0 ? items : [{ title: '', description: '', order: '' }];
         return (
@@ -2587,7 +2726,7 @@ export default function PageView() {
                 type="button"
                 onClick={() => {
                   setDraft({
-                    ...draft,
+                    ...timelineDraft,
                     items: [...normalizedItems, { title: '', description: '', order: '' }]
                   });
                 }}
@@ -2606,7 +2745,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === 0) return;
-                          setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx - 1) });
+                          setDraft({ ...timelineDraft, items: moveItem(normalizedItems, idx, idx - 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2616,7 +2755,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === normalizedItems.length - 1) return;
-                          setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx + 1) });
+                          setDraft({ ...timelineDraft, items: moveItem(normalizedItems, idx, idx + 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2627,7 +2766,7 @@ export default function PageView() {
                           type="button"
                           onClick={() => {
                             const nextItems = normalizedItems.filter((_i, i) => i !== idx);
-                            setDraft({ ...draft, items: nextItems });
+                            setDraft({ ...timelineDraft, items: nextItems });
                           }}
                           className="text-red-400"
                         >
@@ -2641,7 +2780,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextItems = normalizedItems.map((entry) => ({ ...entry }));
                       nextItems[idx].title = event.target.value;
-                      setDraft({ ...draft, items: nextItems });
+                      setDraft({ ...timelineDraft, items: nextItems });
                     }}
                     placeholder={t('blocks.placeholders.timelineTitle')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -2651,7 +2790,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextItems = normalizedItems.map((entry) => ({ ...entry }));
                       nextItems[idx].order = event.target.value;
-                      setDraft({ ...draft, items: nextItems });
+                      setDraft({ ...timelineDraft, items: nextItems });
                     }}
                     placeholder={t('blocks.placeholders.timelineOrder')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -2661,7 +2800,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextItems = normalizedItems.map((entry) => ({ ...entry }));
                       nextItems[idx].description = event.target.value;
-                      setDraft({ ...draft, items: nextItems });
+                      setDraft({ ...timelineDraft, items: nextItems });
                     }}
                     placeholder={t('blocks.placeholders.timelineDescription')}
                     className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
@@ -2673,7 +2812,8 @@ export default function PageView() {
         );
       }
       case 'steps': {
-        const steps = Array.isArray(draft.steps) ? draft.steps : [];
+        const stepsDraft = draft as { steps?: Array<{ title?: string; description?: string }> };
+        const steps = Array.isArray(stepsDraft.steps) ? stepsDraft.steps : [];
         const normalizedSteps = steps.length > 0 ? steps : [{ title: '', description: '' }];
         return (
           <div className="space-y-4">
@@ -2684,7 +2824,7 @@ export default function PageView() {
               <button
                 type="button"
                 onClick={() =>
-                  setDraft({ ...draft, steps: [...normalizedSteps, { title: '', description: '' }] })
+                  setDraft({ ...stepsDraft, steps: [...normalizedSteps, { title: '', description: '' }] })
                 }
                 className="btn-ghost rounded-full px-3 py-1 text-xs"
               >
@@ -2701,7 +2841,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === 0) return;
-                          setDraft({ ...draft, steps: moveItem(normalizedSteps, idx, idx - 1) });
+                          setDraft({ ...stepsDraft, steps: moveItem(normalizedSteps, idx, idx - 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2711,7 +2851,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === normalizedSteps.length - 1) return;
-                          setDraft({ ...draft, steps: moveItem(normalizedSteps, idx, idx + 1) });
+                          setDraft({ ...stepsDraft, steps: moveItem(normalizedSteps, idx, idx + 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2722,7 +2862,7 @@ export default function PageView() {
                           type="button"
                           onClick={() => {
                             const nextSteps = normalizedSteps.filter((_s, i) => i !== idx);
-                            setDraft({ ...draft, steps: nextSteps });
+                            setDraft({ ...stepsDraft, steps: nextSteps });
                           }}
                           className="text-xs text-red-400"
                         >
@@ -2736,7 +2876,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextSteps = normalizedSteps.map((entry) => ({ ...entry }));
                       nextSteps[idx].title = event.target.value;
-                      setDraft({ ...draft, steps: nextSteps });
+                      setDraft({ ...stepsDraft, steps: nextSteps });
                     }}
                     placeholder={t('blocks.placeholders.stepTitle')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -2746,7 +2886,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextSteps = normalizedSteps.map((entry) => ({ ...entry }));
                       nextSteps[idx].description = event.target.value;
-                      setDraft({ ...draft, steps: nextSteps });
+                      setDraft({ ...stepsDraft, steps: nextSteps });
                     }}
                     placeholder={t('blocks.placeholders.stepDescription')}
                     className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
@@ -2758,7 +2898,8 @@ export default function PageView() {
         );
       }
       case 'faq': {
-        const items = Array.isArray(draft.items) ? draft.items : [];
+        const faqDraft = draft as { items?: Array<{ question?: string; answer?: string }> };
+        const items = Array.isArray(faqDraft.items) ? faqDraft.items : [];
         const normalizedItems = items.length > 0 ? items : [{ question: '', answer: '' }];
         return (
           <div className="space-y-4">
@@ -2769,7 +2910,7 @@ export default function PageView() {
               <button
                 type="button"
                 onClick={() =>
-                  setDraft({ ...draft, items: [...normalizedItems, { question: '', answer: '' }] })
+                  setDraft({ ...faqDraft, items: [...normalizedItems, { question: '', answer: '' }] })
                 }
                 className="btn-ghost rounded-full px-3 py-1 text-xs"
               >
@@ -2786,7 +2927,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === 0) return;
-                          setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx - 1) });
+                          setDraft({ ...faqDraft, items: moveItem(normalizedItems, idx, idx - 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2796,7 +2937,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === normalizedItems.length - 1) return;
-                          setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx + 1) });
+                          setDraft({ ...faqDraft, items: moveItem(normalizedItems, idx, idx + 1) });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2807,7 +2948,7 @@ export default function PageView() {
                           type="button"
                           onClick={() =>
                             setDraft({
-                              ...draft,
+                              ...faqDraft,
                               items: normalizedItems.filter((_item, index) => index !== idx)
                             })
                           }
@@ -2823,7 +2964,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextItems = normalizedItems.map((entry) => ({ ...entry }));
                       nextItems[idx].question = event.target.value;
-                      setDraft({ ...draft, items: nextItems });
+                      setDraft({ ...faqDraft, items: nextItems });
                     }}
                     placeholder={t('blocks.placeholders.faqQuestion')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -2833,7 +2974,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextItems = normalizedItems.map((entry) => ({ ...entry }));
                       nextItems[idx].answer = event.target.value;
-                      setDraft({ ...draft, items: nextItems });
+                      setDraft({ ...faqDraft, items: nextItems });
                     }}
                     placeholder={t('blocks.placeholders.faqAnswer')}
                     className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
@@ -2844,17 +2985,20 @@ export default function PageView() {
           </div>
         );
       }
-      case 'summary':
+      case 'summary': {
+        const summaryDraft = draft as { text?: string };
         return (
           <textarea
-            value={draft.text || ''}
-            onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+            value={summaryDraft.text ?? ''}
+            onChange={(event) => setDraft({ ...summaryDraft, text: event.target.value })}
             className="input-field w-full min-h-[100px] rounded-xl px-3 py-2 text-sm"
             placeholder={t('blocks.placeholders.summary')}
           />
         );
+      }
       case 'takeaways': {
-        const items = Array.isArray(draft.items) ? draft.items : [];
+        const takeawaysDraft = draft as { items?: string[] };
+        const items = Array.isArray(takeawaysDraft.items) ? takeawaysDraft.items : [];
         const normalizedItems = items.length > 0 ? items : [''];
         return (
           <div className="space-y-3">
@@ -2866,7 +3010,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const next = [...normalizedItems];
                       next[idx] = event.target.value;
-                      setDraft({ ...draft, items: next });
+                      setDraft({ ...takeawaysDraft, items: next });
                     }}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
                     placeholder={t('blocks.placeholders.takeawaysItem')}
@@ -2876,7 +3020,7 @@ export default function PageView() {
                       type="button"
                       onClick={() => {
                         if (idx === 0) return;
-                        setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx - 1) });
+                        setDraft({ ...takeawaysDraft, items: moveItem(normalizedItems, idx, idx - 1) });
                       }}
                       className="text-xs text-muted"
                     >
@@ -2886,7 +3030,7 @@ export default function PageView() {
                       type="button"
                       onClick={() => {
                         if (idx === normalizedItems.length - 1) return;
-                        setDraft({ ...draft, items: moveItem(normalizedItems, idx, idx + 1) });
+                        setDraft({ ...takeawaysDraft, items: moveItem(normalizedItems, idx, idx + 1) });
                       }}
                       className="text-xs text-muted"
                     >
@@ -2897,7 +3041,7 @@ export default function PageView() {
                         type="button"
                         onClick={() =>
                           setDraft({
-                            ...draft,
+                            ...takeawaysDraft,
                             items: normalizedItems.filter((_item, index) => index !== idx)
                           })
                         }
@@ -2912,7 +3056,7 @@ export default function PageView() {
             </div>
             <button
               type="button"
-              onClick={() => setDraft({ ...draft, items: [...normalizedItems, ''] })}
+              onClick={() => setDraft({ ...takeawaysDraft, items: [...normalizedItems, ''] })}
               className="btn-ghost inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
             >
               {t('blocks.editor.addItem')}
@@ -2921,15 +3065,29 @@ export default function PageView() {
         );
       }
       case 'quiz': {
-        const initialQuestions = Array.isArray(draft.questions)
-          ? draft.questions
+        const quizDraft = draft as {
+          questions?: Array<{
+            question?: string;
+            options?: string[];
+            correctIndex?: number;
+            explanation?: string;
+            answer?: string;
+          }>;
+          question?: string;
+          options?: string[];
+          correctIndex?: number;
+          explanation?: string;
+          answer?: string;
+        };
+        const initialQuestions = Array.isArray(quizDraft.questions)
+          ? quizDraft.questions
           : [
               {
-                question: draft.question || '',
-                options: Array.isArray(draft.options) ? draft.options : [''],
-                correctIndex: draft.correctIndex ?? undefined,
-                explanation: draft.explanation || '',
-                answer: draft.answer || ''
+                question: quizDraft.question || '',
+                options: Array.isArray(quizDraft.options) ? quizDraft.options : [''],
+                correctIndex: quizDraft.correctIndex ?? undefined,
+                explanation: quizDraft.explanation || '',
+                answer: quizDraft.answer || ''
               }
             ];
         const normalizedQuestions =
@@ -2946,7 +3104,7 @@ export default function PageView() {
                 type="button"
                 onClick={() =>
                   setDraft({
-                    ...draft,
+                    ...quizDraft,
                     questions: [
                       ...normalizedQuestions,
                       { question: '', options: [''], explanation: '' }
@@ -2968,7 +3126,10 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (qIndex === 0) return;
-                          setDraft({ ...draft, questions: moveItem(normalizedQuestions, qIndex, qIndex - 1) });
+                          setDraft({
+                            ...quizDraft,
+                            questions: moveItem(normalizedQuestions, qIndex, qIndex - 1)
+                          });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2978,7 +3139,10 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (qIndex === normalizedQuestions.length - 1) return;
-                          setDraft({ ...draft, questions: moveItem(normalizedQuestions, qIndex, qIndex + 1) });
+                          setDraft({
+                            ...quizDraft,
+                            questions: moveItem(normalizedQuestions, qIndex, qIndex + 1)
+                          });
                         }}
                         className="text-xs text-muted"
                       >
@@ -2987,12 +3151,12 @@ export default function PageView() {
                       {normalizedQuestions.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => {
-                            const nextQuestions = normalizedQuestions.filter((_q, idx) => idx !== qIndex);
-                            setDraft({ ...draft, questions: nextQuestions });
-                          }}
-                          className="text-red-400"
-                        >
+                        onClick={() => {
+                          const nextQuestions = normalizedQuestions.filter((_q, idx) => idx !== qIndex);
+                          setDraft({ ...quizDraft, questions: nextQuestions });
+                        }}
+                        className="text-red-400"
+                      >
                           {t('blocks.editor.remove')}
                         </button>
                       )}
@@ -3003,7 +3167,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextQuestions = normalizedQuestions.map((item) => ({ ...item }));
                       nextQuestions[qIndex].question = event.target.value;
-                      setDraft({ ...draft, questions: nextQuestions });
+                      setDraft({ ...quizDraft, questions: nextQuestions });
                     }}
                     placeholder={t('blocks.placeholders.quizQuestion')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3019,7 +3183,7 @@ export default function PageView() {
                             ? [...nextQuestions[qIndex].options, '']
                             : [''];
                           nextQuestions[qIndex].options = nextOptions;
-                          setDraft({ ...draft, questions: nextQuestions });
+                          setDraft({ ...quizDraft, questions: nextQuestions });
                         }}
                         className="text-xs text-muted"
                       >
@@ -3031,17 +3195,17 @@ export default function PageView() {
                         <input
                           value={opt}
                           onChange={(event) => {
-                            const nextQuestions = normalizedQuestions.map((item) => ({ ...item }));
-                            const nextOptions = Array.isArray(nextQuestions[qIndex].options)
-                              ? [...nextQuestions[qIndex].options]
-                              : [];
-                            nextOptions[optIndex] = event.target.value;
-                            nextQuestions[qIndex].options = nextOptions;
-                            setDraft({ ...draft, questions: nextQuestions });
-                          }}
-                          className="input-field w-full rounded-xl px-3 py-2 text-sm"
-                          placeholder={t('blocks.labels.option', { index: optIndex + 1 })}
-                        />
+                          const nextQuestions = normalizedQuestions.map((item) => ({ ...item }));
+                          const nextOptions = Array.isArray(nextQuestions[qIndex].options)
+                            ? [...nextQuestions[qIndex].options]
+                            : [];
+                          nextOptions[optIndex] = event.target.value;
+                          nextQuestions[qIndex].options = nextOptions;
+                          setDraft({ ...quizDraft, questions: nextQuestions });
+                        }}
+                        className="input-field w-full rounded-xl px-3 py-2 text-sm"
+                        placeholder={t('blocks.labels.option', { index: optIndex + 1 })}
+                      />
                         {Array.isArray(q.options) && q.options.length > 1 && (
                           <button
                             type="button"
@@ -3058,7 +3222,7 @@ export default function PageView() {
                                   nextQuestions[qIndex].correctIndex -= 1;
                                 }
                               }
-                              setDraft({ ...draft, questions: nextQuestions });
+                              setDraft({ ...quizDraft, questions: nextQuestions });
                             }}
                             className="text-xs text-red-400"
                           >
@@ -3074,7 +3238,7 @@ export default function PageView() {
                       const nextQuestions = normalizedQuestions.map((item) => ({ ...item }));
                       const value = event.target.value;
                       nextQuestions[qIndex].correctIndex = value === '' ? undefined : Number(value);
-                      setDraft({ ...draft, questions: nextQuestions });
+                      setDraft({ ...quizDraft, questions: nextQuestions });
                     }}
                     className="input-field w-full appearance-none rounded-xl px-3 py-2 text-sm"
                   >
@@ -3090,7 +3254,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextQuestions = normalizedQuestions.map((item) => ({ ...item }));
                       nextQuestions[qIndex].explanation = event.target.value;
-                      setDraft({ ...draft, questions: nextQuestions });
+                      setDraft({ ...quizDraft, questions: nextQuestions });
                     }}
                     placeholder={t('blocks.placeholders.quizExplanation')}
                     className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
@@ -3102,17 +3266,18 @@ export default function PageView() {
         );
       }
       case 'flashcard': {
+        const flashcardDraft = draft as { front?: string; back?: string };
         return (
           <div className="space-y-3">
             <input
-              value={draft.front || ''}
-              onChange={(event) => setDraft({ ...draft, front: event.target.value })}
+              value={flashcardDraft.front ?? ''}
+              onChange={(event) => setDraft({ ...flashcardDraft, front: event.target.value })}
               placeholder={t('blocks.placeholders.flashcardFront')}
               className="input-field w-full rounded-xl px-3 py-2 text-sm"
             />
             <textarea
-              value={draft.back || ''}
-              onChange={(event) => setDraft({ ...draft, back: event.target.value })}
+              value={flashcardDraft.back ?? ''}
+              onChange={(event) => setDraft({ ...flashcardDraft, back: event.target.value })}
               placeholder={t('blocks.placeholders.flashcardBack')}
               className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
             />
@@ -3120,7 +3285,8 @@ export default function PageView() {
         );
       }
       case 'flashcard_deck': {
-        const cards = Array.isArray(draft.cards) ? draft.cards : [];
+        const flashcardDeckDraft = draft as { cards?: Array<{ front?: string; back?: string }> };
+        const cards = Array.isArray(flashcardDeckDraft.cards) ? flashcardDeckDraft.cards : [];
         const normalizedCards = cards.length > 0 ? cards : [{ front: '', back: '' }];
         return (
           <div className="space-y-4">
@@ -3132,7 +3298,7 @@ export default function PageView() {
                 type="button"
                 onClick={() =>
                   setDraft({
-                    ...draft,
+                    ...flashcardDeckDraft,
                     cards: [...normalizedCards, { front: '', back: '' }]
                   })
                 }
@@ -3151,7 +3317,10 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === 0) return;
-                          setDraft({ ...draft, cards: moveItem(normalizedCards, idx, idx - 1) });
+                          setDraft({
+                            ...flashcardDeckDraft,
+                            cards: moveItem(normalizedCards, idx, idx - 1)
+                          });
                         }}
                         className="text-xs text-muted"
                       >
@@ -3161,7 +3330,10 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           if (idx === normalizedCards.length - 1) return;
-                          setDraft({ ...draft, cards: moveItem(normalizedCards, idx, idx + 1) });
+                          setDraft({
+                            ...flashcardDeckDraft,
+                            cards: moveItem(normalizedCards, idx, idx + 1)
+                          });
                         }}
                         className="text-xs text-muted"
                       >
@@ -3170,14 +3342,14 @@ export default function PageView() {
                       {normalizedCards.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => {
-                            const nextCards = normalizedCards.filter((_c, i) => i !== idx);
-                            setDraft({ ...draft, cards: nextCards });
-                          }}
-                          className="text-xs text-red-400"
-                        >
-                          {t('blocks.editor.remove')}
-                        </button>
+                        onClick={() => {
+                          const nextCards = normalizedCards.filter((_c, i) => i !== idx);
+                          setDraft({ ...flashcardDeckDraft, cards: nextCards });
+                        }}
+                        className="text-xs text-red-400"
+                      >
+                        {t('blocks.editor.remove')}
+                      </button>
                       )}
                     </div>
                   </div>
@@ -3186,7 +3358,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextCards = normalizedCards.map((item) => ({ ...item }));
                       nextCards[idx].front = event.target.value;
-                      setDraft({ ...draft, cards: nextCards });
+                      setDraft({ ...flashcardDeckDraft, cards: nextCards });
                     }}
                     placeholder={t('blocks.placeholders.flashcardFront')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3196,7 +3368,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextCards = normalizedCards.map((item) => ({ ...item }));
                       nextCards[idx].back = event.target.value;
-                      setDraft({ ...draft, cards: nextCards });
+                      setDraft({ ...flashcardDeckDraft, cards: nextCards });
                     }}
                     placeholder={t('blocks.placeholders.flashcardBack')}
                     className="input-field w-full min-h-[80px] rounded-xl px-3 py-2 text-sm"
@@ -3207,18 +3379,24 @@ export default function PageView() {
           </div>
         );
       }
-      case 'mermaid':
+      case 'mermaid': {
+        const mermaidDraft = draft as { code?: string };
         return (
           <textarea
-            value={draft.code || ''}
-            onChange={(event) => setDraft({ ...draft, code: event.target.value })}
+            value={mermaidDraft.code ?? ''}
+            onChange={(event) => setDraft({ ...mermaidDraft, code: event.target.value })}
             className="input-field w-full min-h-[160px] rounded-xl px-3 py-2 font-mono text-sm"
             placeholder={t('blocks.placeholders.mermaid')}
           />
         );
+      }
       case 'graph': {
-        const nodes = Array.isArray(draft.nodes) ? draft.nodes : [];
-        const edges = Array.isArray(draft.edges) ? draft.edges : [];
+        const graphDraft = draft as {
+          nodes?: Array<{ id?: string; label?: string }>;
+          edges?: Array<{ from?: string; to?: string; label?: string }>;
+        };
+        const nodes = Array.isArray(graphDraft.nodes) ? graphDraft.nodes : [];
+        const edges = Array.isArray(graphDraft.edges) ? graphDraft.edges : [];
         const normalizedNodes = nodes.length > 0 ? nodes : [{ id: '', label: '' }];
         const normalizedEdges = edges.length > 0 ? edges : [{ from: '', to: '', label: '' }];
         return (
@@ -3231,7 +3409,7 @@ export default function PageView() {
                 type="button"
                 onClick={() =>
                   setDraft({
-                    ...draft,
+                    ...graphDraft,
                     nodes: [...normalizedNodes, { id: '', label: '' }],
                     edges: normalizedEdges
                   })
@@ -3249,7 +3427,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextNodes = normalizedNodes.map((item) => ({ ...item }));
                       nextNodes[idx].id = event.target.value;
-                      setDraft({ ...draft, nodes: nextNodes, edges: normalizedEdges });
+                      setDraft({ ...graphDraft, nodes: nextNodes, edges: normalizedEdges });
                     }}
                     placeholder={t('blocks.graph.nodeId')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3260,7 +3438,7 @@ export default function PageView() {
                       onChange={(event) => {
                         const nextNodes = normalizedNodes.map((item) => ({ ...item }));
                         nextNodes[idx].label = event.target.value;
-                        setDraft({ ...draft, nodes: nextNodes, edges: normalizedEdges });
+                        setDraft({ ...graphDraft, nodes: nextNodes, edges: normalizedEdges });
                       }}
                       placeholder={t('blocks.graph.nodeLabel')}
                       className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3270,7 +3448,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           const nextNodes = normalizedNodes.filter((_n, i) => i !== idx);
-                          setDraft({ ...draft, nodes: nextNodes, edges: normalizedEdges });
+                          setDraft({ ...graphDraft, nodes: nextNodes, edges: normalizedEdges });
                         }}
                         className="text-xs text-red-400"
                       >
@@ -3290,7 +3468,7 @@ export default function PageView() {
                 type="button"
                 onClick={() =>
                   setDraft({
-                    ...draft,
+                    ...graphDraft,
                     nodes: normalizedNodes,
                     edges: [...normalizedEdges, { from: '', to: '', label: '' }]
                   })
@@ -3308,7 +3486,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextEdges = normalizedEdges.map((item) => ({ ...item }));
                       nextEdges[idx].from = event.target.value;
-                      setDraft({ ...draft, nodes: normalizedNodes, edges: nextEdges });
+                      setDraft({ ...graphDraft, nodes: normalizedNodes, edges: nextEdges });
                     }}
                     placeholder={t('blocks.graph.edgeFrom')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3318,7 +3496,7 @@ export default function PageView() {
                     onChange={(event) => {
                       const nextEdges = normalizedEdges.map((item) => ({ ...item }));
                       nextEdges[idx].to = event.target.value;
-                      setDraft({ ...draft, nodes: normalizedNodes, edges: nextEdges });
+                      setDraft({ ...graphDraft, nodes: normalizedNodes, edges: nextEdges });
                     }}
                     placeholder={t('blocks.graph.edgeTo')}
                     className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3329,7 +3507,7 @@ export default function PageView() {
                       onChange={(event) => {
                         const nextEdges = normalizedEdges.map((item) => ({ ...item }));
                         nextEdges[idx].label = event.target.value;
-                        setDraft({ ...draft, nodes: normalizedNodes, edges: nextEdges });
+                        setDraft({ ...graphDraft, nodes: normalizedNodes, edges: nextEdges });
                       }}
                       placeholder={t('blocks.graph.edgeLabel')}
                       className="input-field w-full rounded-xl px-3 py-2 text-sm"
@@ -3339,7 +3517,7 @@ export default function PageView() {
                         type="button"
                         onClick={() => {
                           const nextEdges = normalizedEdges.filter((_e, i) => i !== idx);
-                          setDraft({ ...draft, nodes: normalizedNodes, edges: nextEdges });
+                          setDraft({ ...graphDraft, nodes: normalizedNodes, edges: nextEdges });
                         }}
                         className="text-xs text-red-400"
                       >

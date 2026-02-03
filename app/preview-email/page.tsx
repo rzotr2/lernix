@@ -4,7 +4,7 @@
 // Email preview page for testing templates before sending.
 // Uses iframe to properly isolate the email's HTML structure from the page.
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { render } from '@react-email/components';
 import { 
   WelcomeEmail, 
@@ -19,24 +19,33 @@ export default function EmailPreviewPage() {
   const [emailHtml, setEmailHtml] = useState<string>('');
 
   // Sample data for previews - using the actual Vercel URL
-  const welcomeData = {
-    userName: 'Sean',
-    dashboardUrl: 'https://my-full-stack-app-iota.vercel.app/dashboard',
-  };
+  const welcomeData = useMemo(
+    () => ({
+      userName: 'Sean',
+      dashboardUrl: 'https://my-full-stack-app-iota.vercel.app/dashboard'
+    }),
+    []
+  );
 
-  const billingData = {
-    firstName: 'Sean',
-    tierName: 'Pro',
-    firstChargeDate: 'February 16, 2026',
-    dashboardUrl: 'https://my-full-stack-app-iota.vercel.app/dashboard',
-    billingUrl: 'https://my-full-stack-app-iota.vercel.app/profile',
-  };
+  const billingData = useMemo(
+    () => ({
+      firstName: 'Sean',
+      tierName: 'Pro',
+      firstChargeDate: 'February 16, 2026',
+      dashboardUrl: 'https://my-full-stack-app-iota.vercel.app/dashboard',
+      billingUrl: 'https://my-full-stack-app-iota.vercel.app/profile'
+    }),
+    []
+  );
 
-  const cancellationData = {
-    firstName: 'Sean',
-    retentionDays: 14,
-    resubscribeUrl: 'https://my-full-stack-app-iota.vercel.app/pay',
-  };
+  const cancellationData = useMemo(
+    () => ({
+      firstName: 'Sean',
+      retentionDays: 14,
+      resubscribeUrl: 'https://my-full-stack-app-iota.vercel.app/pay'
+    }),
+    []
+  );
 
   // Render email to HTML string when template changes
   useEffect(() => {
@@ -56,7 +65,7 @@ export default function EmailPreviewPage() {
       setEmailHtml(html);
     };
     renderEmail();
-  }, [selectedTemplate]);
+  }, [billingData, cancellationData, selectedTemplate, welcomeData]);
 
   const getTemplateInfo = () => {
     switch (selectedTemplate) {

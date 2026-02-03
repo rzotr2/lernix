@@ -36,7 +36,10 @@ async function getAuthedUser(request: NextRequest) {
 async function parseFile(buffer: Buffer, extension: string): Promise<string | null> {
   try {
     if (extension === 'pdf') {
-      const pdfParse = (await import('pdf-parse')).default;
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse =
+        (pdfParseModule as unknown as { default?: (buffer: Buffer) => Promise<{ text?: string }> })
+          .default ?? (pdfParseModule as unknown as (buffer: Buffer) => Promise<{ text?: string }>);
       const result = await pdfParse(buffer);
       return result.text || null;
     }

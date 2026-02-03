@@ -1,8 +1,8 @@
+'use client';
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { locales, defaultLocale } from '@/i18n/config';
-
-'use client';
 
 export default function DashboardRedirect() {
   const router = useRouter();

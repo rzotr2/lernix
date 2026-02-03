@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDashboardData } from '@/services/dashboardService';
+import { getDashboardData, type DashboardData } from '@/services/dashboardService';
 import { DashboardClientPage } from '@/components/DashboardClientPage';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useTranslations } from 'next-intl';
 
 export default function DashboardPage() {
   const { supabase, user } = useAuth();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const t = useTranslations('dashboard');
 

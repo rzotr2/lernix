@@ -20,7 +20,7 @@ type BlockRecord = {
   id: string;
   logical_id: string;
   type: string;
-  content: Record<string, any>;
+  content: Record<string, unknown>;
   position: number;
   version: number;
   is_deleted?: boolean;
@@ -30,6 +30,19 @@ type AttachmentRecord = {
   id: string;
   filename: string;
 };
+
+type GraphNode = { id?: string; label?: string };
+type GraphEdge = { from?: string; to?: string; label?: string };
+type Flashcard = { front?: string; back?: string; explanation?: string };
+type QuizQuestion = {
+  question?: string;
+  options?: string[];
+  correctIndex?: number;
+  explanation?: string;
+  answer?: string;
+};
+type TimelineItem = { title?: string; description?: string; date?: string; order?: string };
+type Span = { start: number; end: number; emphasis?: string; color_token?: string };
 
 async function getAuthedUser(request: NextRequest) {
   const authHeader = request.headers.get('authorization') || '';
@@ -165,7 +178,7 @@ function renderTextWithSpans(text: string, spans?: Array<{ start: number; end: n
   return parts.join('');
 }
 
-function renderGraphSvg(nodes: any[] = [], edges: any[] = []) {
+function renderGraphSvg(nodes: GraphNode[] = [], edges: GraphEdge[] = []) {
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeEdges = Array.isArray(edges) ? edges : [];
   const radius = 140;
@@ -176,7 +189,8 @@ function renderGraphSvg(nodes: any[] = [], edges: any[] = []) {
 
   safeNodes.forEach((node, idx) => {
     const angle = idx * angleStep;
-    positions.set(node.id, {
+    const nodeId = node.id || String(idx);
+    positions.set(nodeId, {
       x: centerX + radius * Math.cos(angle),
       y: centerY + radius * Math.sin(angle)
     });
@@ -184,10 +198,12 @@ function renderGraphSvg(nodes: any[] = [], edges: any[] = []) {
 
   const edgeSvg = safeEdges
     .map((edge, idx) => {
-      const from = positions.get(edge.from);
-      const to = positions.get(edge.to);
+      const from = positions.get(edge.from || '');
+      const to = positions.get(edge.to || '');
       if (!from || !to) return '';
-      const label = edge.label ? `<text x="${(from.x + to.x) / 2}" y="${(from.y + to.y) / 2}" fill="#64748B" font-size="10" text-anchor="middle">${escapeHtml(edge.label)}</text>` : '';
+      const label = edge.label
+        ? `<text x="${(from.x + to.x) / 2}" y="${(from.y + to.y) / 2}" fill="#64748B" font-size="10" text-anchor="middle">${escapeHtml(edge.label)}</text>`
+        : '';
       return `<g key="edge-${idx}">
         <line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="#94A3B8" stroke-width="1" marker-end="url(#arrow)" />
         ${label}
@@ -197,11 +213,11 @@ function renderGraphSvg(nodes: any[] = [], edges: any[] = []) {
 
   const nodeSvg = safeNodes
     .map((node) => {
-      const pos = positions.get(node.id);
+      const pos = positions.get(node.id || '');
       if (!pos) return '';
       return `<g>
         <circle cx="${pos.x}" cy="${pos.y}" r="18" fill="#F8FAFC" stroke="#38BDF8" />
-        <text x="${pos.x}" y="${pos.y + 4}" fill="#0B0F19" font-size="10" text-anchor="middle">${escapeHtml(node.label || node.id)}</text>
+        <text x="${pos.x}" y="${pos.y + 4}" fill="#0B0F19" font-size="10" text-anchor="middle">${escapeHtml(node.label || node.id || '')}</text>
       </g>`;
     })
     .join('');
@@ -219,16 +235,22 @@ function renderGraphSvg(nodes: any[] = [], edges: any[] = []) {
   `;
 }
 
-function renderFlashcards(content: Record<string, any>) {
-  const cards = Array.isArray(content.cards)
-    ? content.cards
-    : Array.isArray(content.items)
-      ? content.items
-      : [{ front: content.front, back: content.back, explanation: content.explanation }];
+function renderFlashcards(content: Record<string, unknown>) {
+  const cards = Array.isArray((content as { cards?: unknown }).cards)
+    ? ((content as { cards: Flashcard[] }).cards || [])
+    : Array.isArray((content as { items?: unknown }).items)
+      ? ((content as { items: Flashcard[] }).items || [])
+      : [
+          {
+            front: (content as { front?: string }).front,
+            back: (content as { back?: string }).back,
+            explanation: (content as { explanation?: string }).explanation
+          }
+        ];
 
   const rendered = cards
-    .filter((card: any) => card.front && (card.back || card.explanation))
-    .map((card: any) => {
+    .filter((card) => card.front && (card.back || card.explanation))
+    .map((card) => {
       const answer = card.back || card.explanation || '';
       return `
         <div class="flashcard">
@@ -242,23 +264,28 @@ function renderFlashcards(content: Record<string, any>) {
   return rendered || `<div class="muted">Flashcard content unavailable.</div>`;
 }
 
-function renderQuiz(content: Record<string, any>) {
-  const questions = Array.isArray(content.questions) ? content.questions : [
-    {
-      question: content.question,
-      options: content.options,
-      correctIndex: content.correctIndex,
-      explanation: content.explanation,
-      answer: content.answer
-    }
-  ];
+function renderQuiz(content: Record<string, unknown>) {
+  const questions = Array.isArray((content as { questions?: unknown }).questions)
+    ? ((content as { questions: QuizQuestion[] }).questions || [])
+    : [
+        {
+          question: (content as { question?: string }).question,
+          options: (content as { options?: string[] }).options,
+          correctIndex: (content as { correctIndex?: number }).correctIndex,
+          explanation: (content as { explanation?: string }).explanation,
+          answer: (content as { answer?: string }).answer
+        }
+      ];
 
   const rendered = questions
-    .filter((q: any) => q.question && Array.isArray(q.options) && q.options.length > 0)
-    .map((q: any, index: number) => {
-      const candidateIndex = q.correctIndex ?? (q.answer ? q.options.findIndex((opt: string) => opt === q.answer) : undefined);
+    .filter((q) => q.question && Array.isArray(q.options) && q.options.length > 0)
+    .map((q) => {
+      const candidateIndex =
+        q.correctIndex ??
+        (q.answer && q.options ? q.options.findIndex((opt: string) => opt === q.answer) : undefined);
       const correctIndex = typeof candidateIndex === 'number' && candidateIndex >= 0 ? candidateIndex : undefined;
-      const optionsHtml = q.options
+      const options = q.options || [];
+      const optionsHtml = options
         .map((opt: string, optIndex: number) => {
           const mark = correctIndex === optIndex ? ' <span class="quiz-correct">(correct)</span>' : '';
           return `<li>${escapeHtml(opt)}${mark}</li>`;
@@ -266,7 +293,7 @@ function renderQuiz(content: Record<string, any>) {
         .join('');
 
       const correctAnswerText =
-        correctIndex !== undefined ? q.options[correctIndex] : null;
+        correctIndex !== undefined ? options[correctIndex] : null;
 
       return `
         <div class="quiz-block">
@@ -282,14 +309,16 @@ function renderQuiz(content: Record<string, any>) {
   return rendered || `<div class="muted">Quiz content unavailable.</div>`;
 }
 
-function renderTimeline(content: Record<string, any>) {
-  const items = Array.isArray(content.items) ? content.items : [];
+function renderTimeline(content: Record<string, unknown>) {
+  const items = Array.isArray((content as { items?: unknown }).items)
+    ? ((content as { items: TimelineItem[] }).items || [])
+    : [];
   if (items.length === 0) {
     return `<div class="muted">Timeline content unavailable.</div>`;
   }
 
   const rendered = items
-    .map((item: any) => {
+    .map((item) => {
       const date = item.date ?? item.order ?? '';
       return `
         <div class="timeline-item">
@@ -304,9 +333,13 @@ function renderTimeline(content: Record<string, any>) {
   return `<div class="timeline">${rendered}</div>`;
 }
 
-function renderTable(content: Record<string, any>) {
-  const columns = Array.isArray(content.columns) ? content.columns : [];
-  const rows = Array.isArray(content.rows) ? content.rows : [];
+function renderTable(content: Record<string, unknown>) {
+  const columns = Array.isArray((content as { columns?: unknown }).columns)
+    ? ((content as { columns: string[] }).columns || [])
+    : [];
+  const rows = Array.isArray((content as { rows?: unknown }).rows)
+    ? ((content as { rows: string[][] }).rows || [])
+    : [];
   if (rows.length === 0) {
     return `<div class="muted">Table content unavailable.</div>`;
   }
@@ -318,7 +351,9 @@ function renderTable(content: Record<string, any>) {
     .map((row: string[]) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join('')}</tr>`)
     .join('');
 
-  const caption = content.caption ? `<div class="table-caption">${escapeHtml(String(content.caption))}</div>` : '';
+  const caption = (content as { caption?: string }).caption
+    ? `<div class="table-caption">${escapeHtml(String((content as { caption?: string }).caption))}</div>`
+    : '';
   return `
     ${caption}
     <table class="table">
@@ -335,8 +370,9 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
       const level = Math.min(Math.max(Number(content.level) || 1, 1), 3);
       const tag = `h${level}`;
       const text = String(content.text || '');
-      const hasSpans = Array.isArray(content.spans) && content.spans.length > 0;
-      const inner = hasSpans ? renderTextWithSpans(text, content.spans) : escapeHtml(text);
+      const spans = Array.isArray(content.spans) ? (content.spans as Span[]) : [];
+      const hasSpans = spans.length > 0;
+      const inner = hasSpans ? renderTextWithSpans(text, spans) : escapeHtml(text);
       const subtitle = content.subtitle
         ? `<div class="subtitle">${escapeHtml(String(content.subtitle))}</div>`
         : '';
@@ -344,8 +380,9 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
     }
     case 'paragraph': {
       const text = String(content.text || '');
-      const hasSpans = Array.isArray(content.spans) && content.spans.length > 0;
-      const inner = hasSpans ? renderTextWithSpans(text, content.spans) : escapeHtml(text);
+      const spans = Array.isArray(content.spans) ? (content.spans as Span[]) : [];
+      const hasSpans = spans.length > 0;
+      const inner = hasSpans ? renderTextWithSpans(text, spans) : escapeHtml(text);
       return `<p>${inner}</p>`;
     }
     case 'quote': {
@@ -357,9 +394,14 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
     }
     case 'callout': {
       const calloutText = String(content.text || '');
-      const hasSpans = Array.isArray(content.spans) && content.spans.length > 0;
-      const inner = hasSpans ? renderTextWithSpans(calloutText, content.spans) : escapeHtml(calloutText);
-      const colorToken = content.color_token && PDF_CALLOUT_TOKENS[content.color_token];
+      const spans = Array.isArray(content.spans) ? (content.spans as Span[]) : [];
+      const hasSpans = spans.length > 0;
+      const inner = hasSpans ? renderTextWithSpans(calloutText, spans) : escapeHtml(calloutText);
+      const tokenKey =
+        typeof content.color_token === 'string' ? content.color_token : undefined;
+      const colorToken = tokenKey
+        ? PDF_CALLOUT_TOKENS[tokenKey as keyof typeof PDF_CALLOUT_TOKENS]
+        : undefined;
       const calloutStyle = colorToken
         ? ` style="border:${colorToken.border};background:${colorToken.background};border-radius:8px;padding:12px;"`
         : ' class="callout"';
@@ -373,10 +415,12 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
         : `<div class="muted">List content unavailable.</div>`;
     }
     case 'checklist': {
-      const items = Array.isArray(content.items) ? content.items : [];
+      const items = Array.isArray((content as { items?: unknown }).items)
+        ? ((content as { items: { text?: string; checked?: boolean }[] }).items || [])
+        : [];
       if (!items.length) return `<div class="muted">Checklist content unavailable.</div>`;
       const rendered = items
-        .map((item: any) => {
+        .map((item) => {
           const checked = item?.checked ? '☑' : '☐';
           return `<li>${checked} ${escapeHtml(String(item?.text || ''))}</li>`;
         })
@@ -384,10 +428,12 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
       return `<ul class="list">${rendered}</ul>`;
     }
     case 'definitions': {
-      const items = Array.isArray(content.items) ? content.items : [];
+      const items = Array.isArray((content as { items?: unknown }).items)
+        ? ((content as { items: { term?: string; definition?: string }[] }).items || [])
+        : [];
       if (!items.length) return `<div class="muted">Definitions content unavailable.</div>`;
       const rendered = items
-        .map((item: any) => `<dt>${escapeHtml(String(item?.term || ''))}</dt><dd>${escapeHtml(String(item?.definition || ''))}</dd>`)
+        .map((item) => `<dt>${escapeHtml(String(item?.term || ''))}</dt><dd>${escapeHtml(String(item?.definition || ''))}</dd>`)
         .join('');
       return `<dl class="definitions">${rendered}</dl>`;
     }
@@ -411,11 +457,13 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
     case 'flashcard_deck':
       return renderFlashcards(content);
     case 'faq': {
-      const items = Array.isArray(content.items) ? content.items : [];
+      const items = Array.isArray((content as { items?: unknown }).items)
+        ? ((content as { items: { question?: string; answer?: string }[] }).items || [])
+        : [];
       if (!items.length) return `<div class="muted">FAQ content unavailable.</div>`;
       const rendered = items
         .map(
-          (item: any) =>
+          (item) =>
             `<div class="faq-item"><div class="faq-q">${escapeHtml(String(item?.question || ''))}</div><div class="faq-a">${escapeHtml(String(item?.answer || ''))}</div></div>`
         )
         .join('');
@@ -434,11 +482,13 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
     case 'timeline':
       return renderTimeline(content);
     case 'steps': {
-      const steps = Array.isArray(content.steps) ? content.steps : [];
+      const steps = Array.isArray((content as { steps?: unknown }).steps)
+        ? ((content as { steps: { title?: string; description?: string }[] }).steps || [])
+        : [];
       if (!steps.length) return `<div class="muted">Steps content unavailable.</div>`;
       const rendered = steps
         .map(
-          (step: any) =>
+          (step) =>
             `<li><strong>${escapeHtml(String(step?.title || ''))}</strong><div>${escapeHtml(String(step?.description || ''))}</div></li>`
         )
         .join('');
@@ -450,7 +500,13 @@ function renderBlock(block: BlockRecord, attachmentsMap: Map<string, AttachmentR
       return `<div class="mermaid" data-mermaid="true">${escapeHtml(code)}</div>`;
     }
     case 'graph': {
-      const svg = renderGraphSvg(content.nodes, content.edges);
+      const nodes = Array.isArray((content as { nodes?: unknown }).nodes)
+        ? ((content as { nodes: GraphNode[] }).nodes || [])
+        : [];
+      const edges = Array.isArray((content as { edges?: unknown }).edges)
+        ? ((content as { edges: GraphEdge[] }).edges || [])
+        : [];
+      const svg = renderGraphSvg(nodes, edges);
       return `<div class="graph">${svg}</div>`;
     }
     case 'attachment': {
@@ -606,8 +662,12 @@ export async function POST(request: NextRequest) {
           url: 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'
         });
         await pageInstance.evaluate(async () => {
-          // @ts-ignore
-          const mermaidLib = window.mermaid;
+          const mermaidLib = (window as Window & {
+            mermaid?: {
+              initialize: (options: { startOnLoad: boolean; theme: string }) => void;
+              render: (id: string, code: string) => Promise<{ svg: string }>;
+            };
+          }).mermaid;
           if (!mermaidLib) return;
           mermaidLib.initialize({ startOnLoad: false, theme: 'base' });
           const nodes = Array.from(document.querySelectorAll('[data-mermaid]'));

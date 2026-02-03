@@ -4,6 +4,15 @@ import { supabaseAdmin } from '@/utils/supabase-admin';
 import { incrementDailyActivity, incrementUserStats, touchRecentPage } from '@/utils/dashboard-stats';
 import { slugifyTitle } from '@/utils/slug';
 
+type BlockRow = {
+  logical_id: string;
+  type: string;
+  content: Record<string, unknown>;
+  position: number;
+  version: number;
+  is_deleted: boolean;
+};
+
 async function getAuthedUser(request: NextRequest) {
   const authHeader = request.headers.get('authorization') || '';
   const token = authHeader.replace('Bearer ', '').trim();
@@ -140,8 +149,9 @@ export async function POST(
     .eq('page_id', sourcePage.id)
     .order('version', { ascending: false });
 
-  const latestMap = new Map<string, (typeof blocks)[number]>();
-  (blocks || []).forEach((block) => {
+  const rows = (blocks as unknown as BlockRow[] | null) || [];
+  const latestMap = new Map<string, BlockRow>();
+  rows.forEach((block) => {
     if (!latestMap.has(block.logical_id)) {
       latestMap.set(block.logical_id, block);
     }
@@ -153,10 +163,11 @@ export async function POST(
     const inserts = latestBlocks.map((block) => {
       const newLogicalId = crypto.randomUUID();
       const content = { ...(block.content || {}) };
-      if (block.type === 'attachment' && content.attachment_id) {
-        const replacement = attachmentIdMap.get(content.attachment_id);
+      const attachmentId = (content as { attachment_id?: string }).attachment_id;
+      if (block.type === 'attachment' && attachmentId) {
+        const replacement = attachmentIdMap.get(attachmentId);
         if (replacement) {
-          content.attachment_id = replacement;
+          (content as { attachment_id?: string }).attachment_id = replacement;
         }
       }
       return {

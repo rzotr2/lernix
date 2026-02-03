@@ -22,8 +22,8 @@ type GraphBlockProps = {
 export default function GraphBlock({ nodes, edges }: GraphBlockProps) {
   const t = useTranslations();
 
-  const safeNodes = Array.isArray(nodes) ? nodes : [];
-  const safeEdges = Array.isArray(edges) ? edges : [];
+  const safeNodes = useMemo(() => (Array.isArray(nodes) ? nodes : []), [nodes]);
+  const safeEdges = useMemo(() => (Array.isArray(edges) ? edges : []), [edges]);
 
   const layout = useMemo(() => {
     const radius = 140;

@@ -23,6 +23,7 @@ import { createPage } from '@/services/pagesService';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMemo } from 'react';
+import type { DashboardData, DashboardActivity, DashboardRecentPage } from '@/services/dashboardService';
 
 function getDisplayName(user: { user_metadata?: Record<string, unknown>; email?: string } | null): string {
   if (!user) return '';
@@ -36,7 +37,16 @@ function getDisplayName(user: { user_metadata?: Record<string, unknown>; email?:
   return '';
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type TooltipPayload = { value: number };
+const CustomTooltip = ({
+  active,
+  payload,
+  label
+}: {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string;
+}) => {
   if (active && payload && payload.length) {
     return (
       <div className="glass-surface-strong rounded-lg p-3 text-sm shadow-lg">
@@ -49,7 +59,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function DashboardClientPage({ data }: { data: any }) {
+export function DashboardClientPage({ data }: { data: DashboardData }) {
   const t = useTranslations('dashboard');
   const tPages = useTranslations('pages');
   const { user, session } = useAuth();
@@ -75,7 +85,7 @@ export function DashboardClientPage({ data }: { data: any }) {
 
   const chartData = useMemo(() => {
     const rows = data?.activity30Days || [];
-    return rows.map((row: any) => ({
+    return rows.map((row: DashboardActivity) => ({
       name: row.date,
       value: row.pagesCreated || 0
     }));
@@ -161,7 +171,7 @@ export function DashboardClientPage({ data }: { data: any }) {
           <div className="text-sm text-muted">{t('recentEmpty')}</div>
         ) : (
           <div className="flex space-x-6 overflow-x-auto p-4">
-            {(data?.recentPages || []).map((project: any) => (
+            {(data?.recentPages || []).map((project: DashboardRecentPage) => (
               <motion.div
                 key={project.id}
                 className="glass-surface-strong rounded-2xl p-4 flex-shrink-0 w-64"
@@ -188,7 +198,7 @@ export function DashboardClientPage({ data }: { data: any }) {
           <div className="text-sm text-muted">{t('favoritesEmpty')}</div>
         ) : (
           <div className="flex space-x-6 overflow-x-auto p-4">
-            {(data?.favorites || []).map((project: any) => (
+            {(data?.favorites || []).map((project: DashboardRecentPage) => (
               <motion.div
                 key={project.id}
                 className="glass-surface-strong rounded-2xl p-4 flex-shrink-0 w-64"
@@ -247,7 +257,7 @@ export function DashboardClientPage({ data }: { data: any }) {
             </h2>
             <div className="glass-surface-strong rounded-2xl p-4 h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={(data?.activity30Days || []).map((row: any) => ({
+                <AreaChart data={(data?.activity30Days || []).map((row: DashboardActivity) => ({
                   name: row.date,
                   value: row.aiCalls || 0
                 }))}>

@@ -25,6 +25,18 @@ const allowedMimeTypes = new Set([
   'image/webp'
 ]);
 
+type AttachmentRow = {
+  id: string;
+  page_id: string;
+  filename: string;
+  file_type: string;
+  file_size: number;
+  storage_path: string;
+  created_at: string;
+  uploaded_by: string;
+  parsed_text?: string | null;
+};
+
 function getSupabaseClient(token: string) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
@@ -93,7 +105,10 @@ async function parseFile(
 ): Promise<string | null> {
   try {
     if (extension === 'pdf') {
-      const pdfParse = (await import('pdf-parse')).default;
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse =
+        (pdfParseModule as unknown as { default?: (buffer: Buffer) => Promise<{ text?: string }> })
+          .default ?? (pdfParseModule as unknown as (buffer: Buffer) => Promise<{ text?: string }>);
       const result = await pdfParse(buffer);
       return result.text || null;
     }
@@ -149,8 +164,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const rows = (data as unknown as AttachmentRow[] | null) || [];
   const attachmentsWithUrls = await Promise.all(
-    (data || []).map(async (attachment) => {
+    rows.map(async (attachment) => {
       const { data: signed, error: signedError } = await supabase.storage
         .from('attachments')
         .createSignedUrl(attachment.storage_path, 60 * 5);

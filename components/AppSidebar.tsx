@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -111,7 +111,7 @@ export default function AppSidebar() {
     return new Set(findPathBySlug(tree, activeSlug));
   }, [tree, activeSlug]);
 
-  const loadPages = async () => {
+  const loadPages = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -134,7 +134,7 @@ export default function AppSidebar() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session?.access_token]);
 
   useEffect(() => {
     if (!session?.access_token) return;
@@ -142,7 +142,7 @@ export default function AppSidebar() {
     const handler = () => loadPages();
     window.addEventListener('pages:refresh', handler);
     return () => window.removeEventListener('pages:refresh', handler);
-  }, [session?.access_token]);
+  }, [loadPages, session?.access_token]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem('locale');
@@ -211,7 +211,6 @@ export default function AppSidebar() {
     const menu = contextMenuRef.current;
     const rect = menu.getBoundingClientRect();
     const containerRect = asideRef.current?.getBoundingClientRect();
-    const containerWidth = containerRect?.width || window.innerWidth;
     const containerHeight = containerRect?.height || window.innerHeight;
     const edgePadding = 4;
     const offsetX = 12;
@@ -357,7 +356,15 @@ export default function AppSidebar() {
     closeSidebar();
   };
 
-  const extractBlockText = (block: any): string => {
+  type TextBlock = { type?: string; content?: Record<string, unknown> };
+  type ChecklistItem = { text?: string };
+  type DefinitionItem = { term?: string; definition?: string };
+  type FaqItem = { question?: string; answer?: string };
+  type StepItem = { title?: string; description?: string };
+  type TimelineItem = { title?: string; description?: string };
+  type GraphNode = { label?: string; id?: string };
+
+  const extractBlockText = useCallback((block: TextBlock): string => {
     const content = block?.content || {};
     switch (block?.type) {
       case 'heading':
@@ -365,48 +372,64 @@ export default function AppSidebar() {
       case 'quote':
       case 'callout':
       case 'summary':
-        return String(content.text || '');
+        return String((content as { text?: unknown }).text || '');
       case 'code':
-        return String(content.code || '');
+        return String((content as { code?: unknown }).code || '');
       case 'list':
       case 'takeaways':
-        return Array.isArray(content.items) ? content.items.join(' ') : '';
+        return Array.isArray((content as { items?: unknown }).items)
+          ? (content as { items: string[] }).items.join(' ')
+          : '';
       case 'checklist':
-        return Array.isArray(content.items)
-          ? content.items.map((item: any) => item?.text || '').join(' ')
+        return Array.isArray((content as { items?: unknown }).items)
+          ? (content as { items: ChecklistItem[] }).items.map((item) => item?.text || '').join(' ')
           : '';
       case 'definitions':
-        return Array.isArray(content.items)
-          ? content.items.map((item: any) => `${item?.term || ''} ${item?.definition || ''}`).join(' ')
+        return Array.isArray((content as { items?: unknown }).items)
+          ? (content as { items: DefinitionItem[] }).items
+              .map((item) => `${item?.term || ''} ${item?.definition || ''}`)
+              .join(' ')
           : '';
       case 'faq':
-        return Array.isArray(content.items)
-          ? content.items.map((item: any) => `${item?.question || ''} ${item?.answer || ''}`).join(' ')
+        return Array.isArray((content as { items?: unknown }).items)
+          ? (content as { items: FaqItem[] }).items
+              .map((item) => `${item?.question || ''} ${item?.answer || ''}`)
+              .join(' ')
           : '';
       case 'steps':
-        return Array.isArray(content.steps)
-          ? content.steps.map((item: any) => `${item?.title || ''} ${item?.description || ''}`).join(' ')
+        return Array.isArray((content as { steps?: unknown }).steps)
+          ? (content as { steps: StepItem[] }).steps
+              .map((item) => `${item?.title || ''} ${item?.description || ''}`)
+              .join(' ')
           : '';
       case 'timeline':
-        return Array.isArray(content.items)
-          ? content.items.map((item: any) => `${item?.title || ''} ${item?.description || ''}`).join(' ')
+        return Array.isArray((content as { items?: unknown }).items)
+          ? (content as { items: TimelineItem[] }).items
+              .map((item) => `${item?.title || ''} ${item?.description || ''}`)
+              .join(' ')
           : '';
       case 'table':
-        return Array.isArray(content.rows) ? content.rows.flat().join(' ') : '';
+        return Array.isArray((content as { rows?: unknown }).rows)
+          ? (content as { rows: string[][] }).rows.flat().join(' ')
+          : '';
       case 'mermaid':
-        return String(content.code || '');
+        return String((content as { code?: unknown }).code || '');
       case 'graph':
-        return Array.isArray(content.nodes)
-          ? content.nodes.map((node: any) => node?.label || node?.id || '').join(' ')
+        return Array.isArray((content as { nodes?: unknown }).nodes)
+          ? (content as { nodes: GraphNode[] }).nodes
+              .map((node) => node?.label || node?.id || '')
+              .join(' ')
           : '';
       case 'image':
-        return `${content.alt || ''} ${content.caption || ''}`.trim();
+        return `${(content as { alt?: string }).alt || ''} ${
+          (content as { caption?: string }).caption || ''
+        }`.trim();
       default:
         return '';
     }
-  };
+  }, []);
 
-  const getPageSearchText = async (pageId: string, token: string) => {
+  const getPageSearchText = useCallback(async (pageId: string, token: string) => {
     const cached = searchCacheRef.current.get(pageId);
     if (cached !== undefined) return cached;
     const inFlight = searchInFlightRef.current.get(pageId);
@@ -436,7 +459,7 @@ export default function AppSidebar() {
       });
     searchInFlightRef.current.set(pageId, promise);
     return promise;
-  };
+  }, [extractBlockText]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -472,7 +495,7 @@ export default function AppSidebar() {
       setFilteredPages(results.filter((result) => result.match).map((result) => result.page));
       setIsSearching(false);
     })();
-  }, [debouncedQuery, pages, session?.access_token]);
+  }, [debouncedQuery, getPageSearchText, pages, session?.access_token]);
 
   const renderNode = (node: PageNode, depth = 0) => {
     const hasChildren = node.children.length > 0;

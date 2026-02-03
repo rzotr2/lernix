@@ -58,7 +58,7 @@ export default function TopBar() {
   };
 
   const handleLocaleChange = (nextLocale: string) => {
-    setSelectedLocale(nextLocale);
+    setSelectedLocale(nextLocale as (typeof locales)[number]);
   };
 
   const handleLogout = async () => {
