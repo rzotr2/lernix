@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('pages')
-    .select('id,title,slug,parent_page_id,owner_id,created_at,updated_at')
+    .select('id,title,slug,parent_page_id,owner_id,is_favorite,created_at,updated_at')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: true });
 
@@ -107,10 +107,11 @@ export async function POST(request: NextRequest) {
       slug,
       parent_page_id: parentPageId,
       owner_id: user.id,
+      is_favorite: false,
       created_at: now,
       updated_at: now
     })
-    .select('id,title,slug,parent_page_id,owner_id,created_at,updated_at')
+    .select('id,title,slug,parent_page_id,owner_id,is_favorite,created_at,updated_at')
     .single();
 
   if (error) {

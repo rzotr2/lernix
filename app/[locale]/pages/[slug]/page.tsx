@@ -19,7 +19,8 @@ import {
   FileText,
   Plus,
   X,
-  Wand2
+  Wand2,
+  Star
 } from 'lucide-react';
 import TableBlock from '@/components/ai-blocks/TableBlock';
 import FlashcardBlock from '@/components/ai-blocks/FlashcardBlock';
@@ -50,6 +51,7 @@ type PageItem = {
   slug: string;
   parent_page_id: string | null;
   owner_id?: string | null;
+  is_favorite?: boolean;
 };
 
 type BlockType =
@@ -465,6 +467,8 @@ export default function PageView() {
 
   const token = session?.access_token;
   const isOwner = !!user && !!page?.owner_id && page.owner_id === user.id;
+  const isReadOnly = !isOwner;
+  const canUseAi = isOwner;
   const canUpload = editMode && isOwner && !isUploading;
   const attachmentsMap = useMemo(
     () => new Map(attachments.map((item) => [item.id, item])),
@@ -519,9 +523,36 @@ export default function PageView() {
     try {
       setIsLoading(true);
       setError(null);
+
+      const fetchPublic = async () => {
+        const response = await fetch(`/api/public/pages/${slug}`);
+        if (!response.ok) {
+          throw new Error(t('pages.errors.load'));
+        }
+        const data = await response.json();
+        const found = data.page || null;
+        setPages(found ? [found] : []);
+        setPage(found);
+        setBlocks(data.blocks || []);
+        setAttachments(data.attachments || []);
+        setIsBlocksLoading(false);
+        const nextTitle = found?.title || '';
+        setOriginalTitle(nextTitle);
+        if (
+          isUntitledTitle(nextTitle, t('pages.untitledDisplay')) ||
+          knownUntitledTitles.includes(nextTitle)
+        ) {
+          setTitle(t('pages.untitledDisplay'));
+        } else {
+          setTitle(nextTitle);
+        }
+      };
+
       if (!token) {
-        throw new Error('Unauthorized');
+        await fetchPublic();
+        return;
       }
+
       const response = await fetch('/api/pages', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -532,6 +563,10 @@ export default function PageView() {
       const data = await response.json();
       const allPages = data.pages || [];
       const found = allPages.find((p: PageItem) => p.slug === slug) || null;
+      if (!found) {
+        await fetchPublic();
+        return;
+      }
       setPages(allPages);
       setPage(found);
       if (found) {
@@ -597,7 +632,6 @@ export default function PageView() {
   };
 
   useEffect(() => {
-    if (!token) return;
     loadPage();
   }, [slug, token]);
 
@@ -622,6 +656,7 @@ export default function PageView() {
 
   useEffect(() => {
     if (!page) return;
+    if (!token) return;
     setBlocks([]);
     setIsBlocksLoading(true);
     loadBlocks(page.id).finally(() => setIsBlocksLoading(false));
@@ -630,6 +665,7 @@ export default function PageView() {
 
   useEffect(() => {
     if (!page?.id) return;
+    if (!token) return;
     const run = async () => {
       const authToken = await getAuthToken();
       if (!authToken) return;
@@ -656,10 +692,15 @@ export default function PageView() {
 
   useEffect(() => {
     if (!page || !aiOpen) return;
+    if (!token) return;
     loadAttachments(page.id, true);
   }, [aiOpen, page?.id, token]);
 
   useEffect(() => {
+    if (!canUseAi) {
+      setAiOpen(false);
+      return;
+    }
     const openFromQuery = searchParams.get('ai') === '1';
     setAiOpen(openFromQuery);
     setAiLanguage('en');
@@ -682,7 +723,7 @@ export default function PageView() {
     setAiSourceInput('');
     setAiManualError(null);
     setAiTempFileError(null);
-  }, [page?.id, searchParams]);
+  }, [page?.id, searchParams, canUseAi]);
 
   useEffect(() => {
     if (!aiOpen) return;
@@ -721,6 +762,12 @@ export default function PageView() {
       setMobileReorderMode(false);
     }
   }, [editMode]);
+
+  useEffect(() => {
+    if (!isReadOnly) return;
+    setEditMode(false);
+    setAiOpen(false);
+  }, [isReadOnly]);
 
   useEffect(() => {
     if (addIndex === null) return;
@@ -843,7 +890,7 @@ export default function PageView() {
   };
 
   const handleRename = async (nextTitle?: string) => {
-    if (!page) return;
+    if (!page || !isOwner) return;
     const trimmed = (nextTitle ?? title).trim();
     if (!trimmed) return;
     if (
@@ -889,7 +936,7 @@ export default function PageView() {
   };
 
   const handleDelete = async () => {
-    if (!page) return;
+    if (!page || !isOwner) return;
     const confirmed = window.confirm(t('pages.deleteConfirm'));
     if (!confirmed) return;
 
@@ -914,7 +961,7 @@ export default function PageView() {
   };
 
   const handleCreateChild = async () => {
-    if (!page) return;
+    if (!page || !isOwner) return;
     try {
       const authToken = await getAuthToken();
       if (!authToken) {
@@ -978,6 +1025,27 @@ export default function PageView() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!page || !isOwner) return;
+    const authToken = await getAuthToken();
+    if (!authToken) return;
+    const isFavorite = !!page.is_favorite;
+    const response = await fetch(`/api/pages/${page.id}/favorite`, {
+      method: isFavorite ? 'DELETE' : 'POST',
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    if (await handleUnauthorized(response)) return;
+    if (!response.ok) return;
+    const data = await response.json();
+    const nextFavorite = !!data.page?.is_favorite;
+    setPage((prev) => (prev ? { ...prev, is_favorite: nextFavorite } : prev));
+    setPages((prev) =>
+      prev.map((item) => (item.id === page.id ? { ...item, is_favorite: nextFavorite } : item))
+    );
+    window.dispatchEvent(new Event('pages:refresh'));
+    window.dispatchEvent(new Event('dashboard:refresh'));
   };
 
   const handleAddBlock = async (index: number, type: BlockType) => {
@@ -3316,6 +3384,7 @@ export default function PageView() {
   };
 
   const handleAiFabClick = () => {
+    if (!canUseAi) return;
     setAiOpen((prev) => !prev);
   };
 
@@ -3391,7 +3460,7 @@ export default function PageView() {
   };
 
   const handleGenerateAi = async () => {
-    if (!page) return;
+    if (!page || !canUseAi) return;
     if (aiSources.length === 0) {
       setAiToast(t('ai.sources.empty'));
       return;
@@ -3513,113 +3582,138 @@ export default function PageView() {
             </nav>
           )}
 
-          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-2)] px-2 py-1 shadow-inner backdrop-blur-xl">
-              <button
-                onClick={() => setEditMode((prev) => !prev)}
-                className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-              >
-                {editMode ? t('editor.editMode') : t('editor.readMode')}
-              </button>
-              <Dialog.Root open={isActionsOpen} onOpenChange={setIsActionsOpen}>
-                <Dialog.Trigger asChild>
-                  <button
-                    type="button"
-                    className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 lg:hidden"
-                    aria-label="More actions"
-                  >
-                    ⋯
-                  </button>
-                </Dialog.Trigger>
-                <Dialog.Portal>
-                  <Dialog.Overlay className="fixed inset-0 z-[70] !m-0 bg-black/40 backdrop-blur-sm" />
-                  <Dialog.Content className="fixed inset-x-4 bottom-4 z-[80] rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
-                    <VisuallyHidden>
-                      <Dialog.Title>Actions</Dialog.Title>
-                    </VisuallyHidden>
-                    <div className="text-xs uppercase tracking-[0.2em] text-muted">
-                      Actions
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleCreateChild();
-                          setIsActionsOpen(false);
-                        }}
-                        className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground"
-                      >
-                        {t('pages.newChild')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleExportPdf();
-                          setIsActionsOpen(false);
-                        }}
-                        disabled={!page || isExporting || blocks.length === 0}
-                        className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground disabled:opacity-60"
-                      >
-                        {isExporting ? 'Exporting...' : 'Export as PDF'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleDelete();
-                          setIsActionsOpen(false);
-                        }}
-                        className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-left text-sm text-red-600"
-                      >
-                        {t('pages.delete')}
-                      </button>
-                    </div>
-                  </Dialog.Content>
-                </Dialog.Portal>
-              </Dialog.Root>
-              <button
-                onClick={handleExportPdf}
-                disabled={!page || isExporting || blocks.length === 0}
-                className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60"
-              >
-                {isExporting ? 'Exporting...' : 'Export as PDF'}
-              </button>
-              {editMode && (
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.docx,.md,.txt,.png,.jpg,.jpeg,.webp"
-                  onChange={handleFileSelection}
-                />
-              )}
-              <button
-                onClick={handleCreateChild}
-                className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-              >
-                {t('pages.newChild')}
-              </button>
-              <button
-                onClick={handleDelete}
-                className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-red-600 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 focus-visible:ring-2 focus-visible:ring-red-400/40"
-              >
-                {t('pages.delete')}
-              </button>
+          {isOwner && (
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-2)] px-2 py-1 shadow-inner backdrop-blur-xl">
+                <button
+                  onClick={() => setEditMode((prev) => !prev)}
+                  className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                >
+                  {editMode ? t('editor.editMode') : t('editor.readMode')}
+                </button>
+                <Dialog.Root open={isActionsOpen} onOpenChange={setIsActionsOpen}>
+                  <Dialog.Trigger asChild>
+                    <button
+                      type="button"
+                      className="rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 lg:hidden"
+                      aria-label="More actions"
+                    >
+                      ⋯
+                    </button>
+                  </Dialog.Trigger>
+                  <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 z-[70] !m-0 bg-black/40 backdrop-blur-sm" />
+                    <Dialog.Content className="fixed inset-x-4 bottom-4 z-[80] rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
+                      <VisuallyHidden>
+                        <Dialog.Title>Actions</Dialog.Title>
+                      </VisuallyHidden>
+                      <div className="text-xs uppercase tracking-[0.2em] text-muted">
+                        Actions
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCreateChild();
+                            setIsActionsOpen(false);
+                          }}
+                          className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground"
+                        >
+                          {t('pages.newChild')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleExportPdf();
+                            setIsActionsOpen(false);
+                          }}
+                          disabled={!page || isExporting || blocks.length === 0}
+                          className="btn-ghost w-full rounded-xl px-4 py-3 text-left text-sm text-foreground disabled:opacity-60"
+                        >
+                          {isExporting ? 'Exporting...' : 'Export as PDF'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDelete();
+                            setIsActionsOpen(false);
+                          }}
+                          className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-left text-sm text-red-600"
+                        >
+                          {t('pages.delete')}
+                        </button>
+                      </div>
+                    </Dialog.Content>
+                  </Dialog.Portal>
+                </Dialog.Root>
+                <button
+                  onClick={handleExportPdf}
+                  disabled={!page || isExporting || blocks.length === 0}
+                  className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60"
+                >
+                  {isExporting ? 'Exporting...' : 'Export as PDF'}
+                </button>
+                {editMode && (
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.docx,.md,.txt,.png,.jpg,.jpeg,.webp"
+                    onChange={handleFileSelection}
+                  />
+                )}
+                <button
+                  onClick={handleCreateChild}
+                  className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-foreground hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                >
+                  {t('pages.newChild')}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="hidden lg:inline-flex rounded-full px-3 py-2 text-xs font-medium text-red-600 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 focus-visible:ring-2 focus-visible:ring-red-400/40"
+                >
+                  {t('pages.delete')}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          onBlur={() => handleRename()}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.currentTarget.blur();
-            }
-          }}
-          placeholder="Enter Signal Title..."
-          className="w-full max-w-[90%] text-[clamp(1.875rem,3vw,3rem)] font-bold bg-transparent text-foreground outline-none border-b border-transparent placeholder:text-muted focus:border-cyan-400/50 focus:drop-shadow-[0_0_12px_rgba(34,211,238,0.6)] text-balance break-words mb-8"
-        />
+        <div className="flex items-center gap-3">
+          <input
+            value={title}
+            onChange={(event) => {
+              if (!isOwner) return;
+              setTitle(event.target.value);
+            }}
+            onBlur={() => {
+              if (!isOwner) return;
+              handleRename();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.currentTarget.blur();
+              }
+            }}
+            readOnly={!isOwner}
+            placeholder="Enter Signal Title..."
+            className="w-full max-w-[90%] text-[clamp(1.875rem,3vw,3rem)] font-bold bg-transparent text-foreground outline-none border-b border-transparent placeholder:text-muted focus:border-cyan-400/50 focus:drop-shadow-[0_0_12px_rgba(34,211,238,0.6)] text-balance break-words mb-8"
+          />
+          {isOwner && (
+            <button
+              type="button"
+              onClick={handleToggleFavorite}
+              className="mb-8 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-2)] text-amber-300 transition hover:bg-[color:var(--surface-3)]"
+              aria-label={page?.is_favorite ? t('pages.removeFromFavorites') : t('pages.addToFavorites')}
+            >
+              <Star
+                className="h-4 w-4"
+                strokeWidth={1.5}
+                fill={page?.is_favorite ? 'currentColor' : 'none'}
+              />
+            </button>
+          )}
+        </div>
       </div>
 
       {isSaving && (
@@ -3944,7 +4038,7 @@ export default function PageView() {
       </Dialog.Root>
 
       <AnimatePresence>
-        {aiOpen && (
+        {aiOpen && canUseAi && (
           <motion.div
             ref={aiBlockRef}
             initial={{ opacity: 0, y: 16 }}
@@ -4195,22 +4289,24 @@ export default function PageView() {
         )}
       </AnimatePresence>
 
-      <button
-        type="button"
-        aria-label={t('ai.fabAria')}
-        onClick={handleAiFabClick}
-        className={`fixed right-5 z-40 rounded-full text-white shadow-lg focus-visible:ring-2 focus-visible:ring-primary/40 transition-all ${
-          isMobile
-            ? `bottom-[calc(env(safe-area-inset-bottom)+4rem)] ${
-                isHeaderHidden
-                  ? 'h-3 w-3 p-0 bg-cyan-400 animate-pulse'
-                  : 'px-4 py-3 text-sm font-semibold bg-primary hover:bg-primary-dark'
-              }`
-            : 'bottom-5 sm:bottom-6 px-4 py-3 text-sm font-semibold bg-primary hover:bg-primary-dark'
-        }`}
-      >
-        {isMobile && isHeaderHidden ? <span className="sr-only">AI</span> : 'AI'}
-      </button>
+      {canUseAi && (
+        <button
+          type="button"
+          aria-label={t('ai.fabAria')}
+          onClick={handleAiFabClick}
+          className={`fixed right-5 z-40 rounded-full text-white shadow-lg focus-visible:ring-2 focus-visible:ring-primary/40 transition-all ${
+            isMobile
+              ? `bottom-[calc(env(safe-area-inset-bottom)+4rem)] ${
+                  isHeaderHidden
+                    ? 'h-3 w-3 p-0 bg-cyan-400 animate-pulse'
+                    : 'px-4 py-3 text-sm font-semibold bg-primary hover:bg-primary-dark'
+                }`
+              : 'bottom-5 sm:bottom-6 px-4 py-3 text-sm font-semibold bg-primary hover:bg-primary-dark'
+          }`}
+        >
+          {isMobile && isHeaderHidden ? <span className="sr-only">AI</span> : 'AI'}
+        </button>
+      )}
     </div>
   );
 }

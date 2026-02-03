@@ -75,7 +75,7 @@ export async function PATCH(
     .update({ title, updated_at: now })
     .eq('id', id)
     .eq('owner_id', user.id)
-    .select('id,title,slug,parent_page_id,owner_id,created_at,updated_at')
+    .select('id,title,slug,parent_page_id,owner_id,is_favorite,created_at,updated_at')
     .single();
 
   if (error) {

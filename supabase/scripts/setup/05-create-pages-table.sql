@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.pages (
   slug text NOT NULL,
   parent_page_id uuid NULL REFERENCES public.pages(id) ON DELETE CASCADE,
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  is_favorite boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -18,6 +19,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS pages_owner_slug_unique ON public.pages(owner_
 CREATE INDEX IF NOT EXISTS pages_owner_id_idx ON public.pages(owner_id);
 CREATE INDEX IF NOT EXISTS pages_parent_id_idx ON public.pages(parent_page_id);
 CREATE INDEX IF NOT EXISTS pages_created_at_idx ON public.pages(created_at);
+CREATE INDEX IF NOT EXISTS pages_owner_favorite_idx ON public.pages(owner_id, is_favorite);
 
 -- Enable RLS
 ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;

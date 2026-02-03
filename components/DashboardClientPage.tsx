@@ -179,6 +179,36 @@ export function DashboardClientPage({ data }: { data: any }) {
         )}
       </div>
 
+      {/* Favorites */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-foreground mb-4">
+          {t('favorites')}
+        </h2>
+        {(data?.favorites || []).length === 0 ? (
+          <div className="text-sm text-muted">{t('favoritesEmpty')}</div>
+        ) : (
+          <div className="flex space-x-6 overflow-x-auto p-4">
+            {(data?.favorites || []).map((project: any) => (
+              <motion.div
+                key={project.id}
+                className="glass-surface-strong rounded-2xl p-4 flex-shrink-0 w-64"
+                whileHover={{ y: -5, boxShadow: '0 0 15px #0B0F19' }}
+              >
+                <Link href={`/${locale}/pages/${project.slug}`}>
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-amber-300" fill="currentColor" />
+                    <h3 className="font-bold text-foreground">{project.title}</h3>
+                  </div>
+                  <p className="text-sm text-muted">
+                    {new Date(project.updated_at).toLocaleDateString()}
+                  </p>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Analytics & Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

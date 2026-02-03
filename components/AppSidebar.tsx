@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -15,7 +15,8 @@ import {
   Settings,
   Moon,
   Sun,
-  Sparkles
+  Sparkles,
+  Star
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLayout } from '@/contexts/LayoutContext';
@@ -28,6 +29,7 @@ type PageItem = {
   title: string;
   slug: string;
   parent_page_id: string | null;
+  is_favorite?: boolean;
 };
 
 type PageNode = PageItem & { children: PageNode[] };
@@ -84,6 +86,17 @@ export default function AppSidebar() {
   const searchCacheRef = useRef<Map<string, string>>(new Map());
   const searchInFlightRef = useRef<Map<string, Promise<string>>>(new Map());
   const searchVersionRef = useRef(0);
+  const [contextMenu, setContextMenu] = useState<{
+    open: boolean;
+    x: number;
+    y: number;
+    page: PageItem | null;
+  }>({ open: false, x: 0, y: 0, page: null });
+  const asideRef = useRef<HTMLDivElement | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   const locale = pathname.split('/')[1] || 'en';
 
@@ -180,6 +193,168 @@ export default function AppSidebar() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create page');
     }
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ open: false, x: 0, y: 0, page: null });
+  };
+
+  useEffect(() => {
+    if (!contextMenu.open) return;
+    const handleClick = () => closeContextMenu();
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, [contextMenu.open]);
+
+  useLayoutEffect(() => {
+    if (!contextMenu.open || !contextMenuRef.current) return;
+    const menu = contextMenuRef.current;
+    const rect = menu.getBoundingClientRect();
+    const containerRect = asideRef.current?.getBoundingClientRect();
+    const containerWidth = containerRect?.width || window.innerWidth;
+    const containerHeight = containerRect?.height || window.innerHeight;
+    const edgePadding = 4;
+    const offsetX = 12;
+    const spaceBelow = containerHeight - contextMenu.y;
+    const openUp = spaceBelow < rect.height + edgePadding;
+
+    let x = contextMenu.x + offsetX;
+    let y = openUp ? contextMenu.y - rect.height : contextMenu.y;
+
+    if (x < edgePadding) x = edgePadding;
+
+    if (y + rect.height > containerHeight - edgePadding) {
+      y = Math.max(edgePadding, containerHeight - rect.height - edgePadding);
+    }
+    if (y < edgePadding) y = edgePadding;
+
+    setContextMenuPos({ x, y });
+  }, [contextMenu.open, contextMenu.x, contextMenu.y]);
+
+  const handleRename = async (page: PageItem, nextTitle: string) => {
+    const trimmed = nextTitle.trim();
+    if (!trimmed || trimmed === page.title) {
+      setRenamingId(null);
+      return;
+    }
+    const token = session?.access_token;
+    if (!token) return;
+    const response = await fetch(`/api/pages/${page.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title: trimmed })
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const updated = data.page as PageItem;
+    setPages((prev) => prev.map((item) => (item.id === page.id ? { ...item, title: updated.title } : item)));
+    setFilteredPages((prev) => prev.map((item) => (item.id === page.id ? { ...item, title: updated.title } : item)));
+    window.dispatchEvent(new Event('pages:refresh'));
+    setRenamingId(null);
+  };
+
+  const handleDelete = async (page: PageItem) => {
+    const token = session?.access_token;
+    if (!token) return;
+    const confirmed = window.confirm(t('pages.deleteConfirm'));
+    if (!confirmed) return;
+    const response = await fetch(`/api/pages/${page.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return;
+    setPages((prev) => prev.filter((item) => item.id !== page.id));
+    setFilteredPages((prev) => prev.filter((item) => item.id !== page.id));
+    window.dispatchEvent(new Event('pages:refresh'));
+    if (activeSlug === page.slug) {
+      router.replace(`/${locale}`);
+    }
+  };
+
+  const handleDuplicate = async (page: PageItem) => {
+    const token = session?.access_token;
+    if (!token) return;
+    const response = await fetch(`/api/pages/${page.id}/duplicate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const created = data.page as PageItem;
+    setPages((prev) => [...prev, created]);
+    setFilteredPages((prev) => [...prev, created]);
+    window.dispatchEvent(new Event('pages:refresh'));
+    router.push(`/${locale}/pages/${created.slug}`);
+  };
+
+  const handleCreateSubpage = async (page: PageItem) => {
+    const token = session?.access_token;
+    if (!token) return;
+    const response = await fetch('/api/pages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title: t('pages.newPageTitle'), parent_page_id: page.id })
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const created = data.page as PageItem;
+    setPages((prev) => [...prev, created]);
+    setFilteredPages((prev) => [...prev, created]);
+    window.dispatchEvent(new Event('pages:refresh'));
+    router.push(`/${locale}/pages/${created.slug}`);
+  };
+
+  const handleToggleFavorite = async (page: PageItem) => {
+    const token = session?.access_token;
+    if (!token) return;
+    const isFavorite = !!page.is_favorite;
+    const response = await fetch(`/api/pages/${page.id}/favorite`, {
+      method: isFavorite ? 'DELETE' : 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return;
+    setPages((prev) =>
+      prev.map((item) => (item.id === page.id ? { ...item, is_favorite: !isFavorite } : item))
+    );
+    setFilteredPages((prev) =>
+      prev.map((item) => (item.id === page.id ? { ...item, is_favorite: !isFavorite } : item))
+    );
+    window.dispatchEvent(new Event('dashboard:refresh'));
+  };
+
+  const handleCopyLink = async (page: PageItem) => {
+    const url = `${window.location.origin}/${locale}/pages/${page.slug}`;
+    await navigator.clipboard.writeText(url);
+  };
+
+  const handleExportPdf = async (page: PageItem) => {
+    const token = session?.access_token;
+    if (!token) return;
+    const response = await fetch('/api/export/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ page_id: page.id, locale })
+    });
+    if (!response.ok) return;
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${page.title || 'page'}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleOpenNewTab = (page: PageItem) => {
+    window.open(`/${locale}/pages/${page.slug}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenPage = (page: PageItem) => {
+    closeContextMenu();
+    router.push(`/${locale}/pages/${page.slug}`);
+    closeSidebar();
   };
 
   const extractBlockText = (block: any): string => {
@@ -328,6 +503,18 @@ export default function AppSidebar() {
             <motion.div
               layout
               whileHover={{ x: 2 }}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                const asideRect = asideRef.current?.getBoundingClientRect();
+                const localX = asideRect ? event.clientX - asideRect.left : event.clientX;
+                const localY = asideRect ? event.clientY - asideRect.top : event.clientY;
+                setContextMenu({
+                  open: true,
+                  x: localX,
+                  y: localY,
+                  page: node
+                });
+              }}
               className={`relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-blue-500/10 text-white border-l-2 border-blue-400 [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
@@ -351,18 +538,53 @@ export default function AppSidebar() {
               <Tooltip.Provider>
                 <Tooltip.Root delayDuration={150}>
                   <Tooltip.Trigger asChild>
-                    <Link
-                      href={`/${locale}/pages/${node.slug}`}
-                      onClick={closeSidebar}
-                      className="flex w-full items-center gap-2 min-w-0"
-                    >
-                      <Icon
-                        strokeWidth={1.5}
-                        className={iconClass}
-                        {...(isActive ? { fill: 'currentColor' } : {})}
-                      />
-                      <span className="flex-1 truncate">{node.title}</span>
-                    </Link>
+                    <div className="flex w-full items-center gap-2 min-w-0">
+                      {renamingId === node.id ? (
+                        <div className="flex w-full items-center gap-2 min-w-0">
+                          <Icon
+                            strokeWidth={1.5}
+                            className={iconClass}
+                            {...(isActive ? { fill: 'currentColor' } : {})}
+                          />
+                          <input
+                            value={renameValue}
+                            onChange={(event) => setRenameValue(event.target.value)}
+                            onBlur={() => handleRename(node, renameValue)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.currentTarget.blur();
+                              }
+                              if (event.key === 'Escape') {
+                                setRenamingId(null);
+                              }
+                            }}
+                            className="flex-1 min-w-0 rounded-md border border-[color:var(--border)] bg-[color:var(--surface-3)] px-2 py-1 text-xs text-foreground outline-none"
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/${locale}/pages/${node.slug}`}
+                          onClick={closeSidebar}
+                          className="flex w-full items-center gap-2 min-w-0"
+                        >
+                          <Icon
+                            strokeWidth={1.5}
+                            className={iconClass}
+                            {...(isActive ? { fill: 'currentColor' } : {})}
+                          />
+                          <span className="flex-1 truncate">{node.title}</span>
+                        </Link>
+                      )}
+                      {node.is_favorite ? (
+                        <Star
+                          strokeWidth={1.5}
+                          className="h-3.5 w-3.5 text-amber-300"
+                          fill="currentColor"
+                          aria-label="Favorite"
+                        />
+                      ) : null}
+                    </div>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Content
@@ -416,7 +638,7 @@ export default function AppSidebar() {
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="flex h-full flex-col">
+      <div ref={asideRef} className="relative flex h-full flex-col">
         <div className="flex-1 flex flex-col min-h-0 space-y-6 px-5 py-6">
           <div className="space-y-3">
             <motion.button
@@ -566,6 +788,104 @@ export default function AppSidebar() {
           </motion.div>
         </div>
       </div>
+
+        {contextMenu.open && contextMenu.page ? (
+          <div
+            ref={contextMenuRef}
+            className="absolute z-[60] min-w-[190px] rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-1 text-[13px] text-foreground shadow-[0_16px_40px_rgba(2,6,23,0.35)]"
+            style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+            onClick={(event) => event.stopPropagation()}
+          >
+          <button
+            type="button"
+            onClick={() => handleOpenPage(contextMenu.page!)}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.open')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRenamingId(contextMenu.page!.id);
+              setRenameValue(contextMenu.page!.title || '');
+              closeContextMenu();
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.rename')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleCreateSubpage(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.newChild')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleDuplicate(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.duplicate')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleToggleFavorite(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {contextMenu.page.is_favorite ? t('pages.removeFromFavorites') : t('pages.addToFavorites')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleCopyLink(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.copyLink')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleExportPdf(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.exportPdf')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleOpenNewTab(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left hover:bg-[color:var(--surface-3)]"
+          >
+            {t('pages.openNewTab')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeContextMenu();
+              handleDelete(contextMenu.page!);
+            }}
+            className="w-full rounded-md px-2.5 py-1.5 text-left text-red-500 hover:bg-red-500/10"
+          >
+            {t('pages.delete')}
+          </button>
+          </div>
+        ) : null}
     </aside>
   );
 }

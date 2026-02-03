@@ -2,6 +2,8 @@
 
 import AppSidebar from '@/components/AppSidebar';
 import { useLayout } from '@/contexts/LayoutContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePathname } from 'next/navigation';
 
 type WorkspaceShellProps = {
   children: React.ReactNode;
@@ -9,15 +11,19 @@ type WorkspaceShellProps = {
 
 export default function WorkspaceShell({ children }: WorkspaceShellProps) {
   const { isSidebarOpen, closeSidebar } = useLayout();
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const isPublicPage = /^\/[^/]+\/pages\/[^/]+$/.test(pathname);
+  const showSidebar = !!user || !isPublicPage;
 
   return (
     <div className="bg-[color:var(--background)]">
-      <div className="relative h-[calc(100vh-var(--topbar-height))] min-h-0 overflow-hidden lg:pl-72">
-        <AppSidebar />
+      <div className={`relative h-[calc(100vh-var(--topbar-height))] min-h-0 overflow-hidden ${showSidebar ? 'lg:pl-72' : ''}`}>
+        {showSidebar && <AppSidebar />}
         <main className="h-full overflow-y-auto overflow-x-hidden">{children}</main>
       </div>
 
-      {isSidebarOpen && (
+      {showSidebar && isSidebarOpen && (
         <button
           type="button"
           aria-label="Close sidebar"

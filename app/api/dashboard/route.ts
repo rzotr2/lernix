@@ -146,6 +146,20 @@ export async function GET(request: NextRequest) {
     activityCount: activity30Days.length
   });
 
+  const { data: favoritesRows } = await supabaseAdmin
+    .from('pages')
+    .select('id,title,slug,updated_at')
+    .eq('owner_id', user.id)
+    .eq('is_favorite', true)
+    .order('updated_at', { ascending: false });
+
+  const favorites = (favoritesRows || []).map((page) => ({
+    id: page.id,
+    title: page.title || 'Untitled',
+    slug: page.slug || '',
+    updated_at: page.updated_at || now.toISOString()
+  }));
+
   const aiUsagePercent =
     statsSafe.total_pages_count > 0
       ? Math.round((statsSafe.pages_with_ai_count / statsSafe.total_pages_count) * 100)
@@ -155,6 +169,7 @@ export async function GET(request: NextRequest) {
     stats: statsSafe,
     aiUsagePercent,
     recentPages,
+    favorites,
     lastPage: recentPages[0] || null,
     activity30Days,
     activity7Days,
